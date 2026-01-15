@@ -172,25 +172,24 @@ class DockerSandboxService(SandboxService):
                     for container_port, host_bindings in port_bindings.items():
                         if host_bindings:
                             host_port = host_bindings[0]["HostPort"]
-                            exposed_port = next(
+                            matching_port = next(
                                 (
-                                    exposed_port
-                                    for exposed_port in self.exposed_ports
-                                    if container_port
-                                    == f"{exposed_port.container_port}/tcp"
+                                    ep
+                                    for ep in self.exposed_ports
+                                    if container_port == f"{ep.container_port}/tcp"
                                 ),
                                 None,
                             )
-                            if exposed_port:
+                            if matching_port:
                                 url = self.container_url_pattern.format(port=host_port)
 
                                 # VSCode URLs require the api_key and working dir
-                                if exposed_port.name == VSCODE:
+                                if matching_port.name == VSCODE:
                                     url += f"/?tkn={session_api_key}&folder={container.attrs['Config']['WorkingDir']}"
 
                                 exposed_urls.append(
                                     ExposedUrl(
-                                        name=exposed_port.name,
+                                        name=matching_port.name,
                                         url=url,
                                         port=host_port,
                                     )
@@ -356,14 +355,14 @@ class DockerSandboxService(SandboxService):
         # Prepare port mappings and add port environment variables
         # When using host network, container ports are directly accessible on the host
         # so we use the container ports directly instead of mapping to random host ports
-        port_mappings: dict[int, int] | None = {}
+        port_mappings: dict[int, int] | None = None
         if self.use_host_network:
             # Host network mode: container ports are directly accessible
             for exposed_port in self.exposed_ports:
                 env_vars[exposed_port.name] = str(exposed_port.container_port)
-            port_mappings = None  # Not used with host network
         else:
             # Bridge network mode: map container ports to random host ports
+            port_mappings = {}
             for exposed_port in self.exposed_ports:
                 host_port = self._find_unused_port()
                 port_mappings[exposed_port.container_port] = host_port
