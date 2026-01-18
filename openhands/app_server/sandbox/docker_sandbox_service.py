@@ -27,6 +27,9 @@ from openhands.app_server.sandbox.sandbox_models import (
     SandboxStatus,
 )
 from openhands.app_server.sandbox.sandbox_service import (
+    ALLOW_CORS_ORIGINS_VARIABLE,
+    SESSION_API_KEY_VARIABLE,
+    WEBHOOK_CALLBACK_VARIABLE,
     SandboxService,
     SandboxServiceInjector,
 )
@@ -37,8 +40,6 @@ from openhands.app_server.utils.docker_utils import (
 )
 
 _logger = logging.getLogger(__name__)
-SESSION_API_KEY_VARIABLE = 'OH_SESSION_API_KEYS_0'
-WEBHOOK_CALLBACK_VARIABLE = 'OH_WEBHOOKS_0_BASE_URL'
 STARTUP_GRACE_SECONDS = 15
 
 
@@ -79,6 +80,7 @@ class DockerSandboxService(SandboxService):
     health_check_path: str | None
     httpx_client: httpx.AsyncClient
     max_num_sandboxes: int
+    web_url: str | None = None
     extra_hosts: dict[str, str] = field(default_factory=dict)
     docker_client: docker.DockerClient = field(default_factory=get_docker_client)
     startup_grace_seconds: int = STARTUP_GRACE_SECONDS
@@ -352,6 +354,12 @@ class DockerSandboxService(SandboxService):
             f'http://host.docker.internal:{self.host_port}/api/v1/webhooks'
         )
 
+        # Set CORS origins for remote browser access when web_url is configured.
+        # This allows the agent-server container to accept requests from the
+        # frontend when running OpenHands on a remote machine.
+        if self.web_url:
+            env_vars[ALLOW_CORS_ORIGINS_VARIABLE] = self.web_url
+
         # Prepare port mappings and add port environment variables
         # When using host network, container ports are directly accessible on the host
         # so we use the container ports directly instead of mapping to random host ports
@@ -576,9 +584,14 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
     ) -> AsyncGenerator[SandboxService, None]:
         # Define inline to prevent circular lookup
         from openhands.app_server.config import (
+            get_global_config,
             get_httpx_client,
             get_sandbox_spec_service,
         )
+
+        # Get web_url from global config for CORS support
+        config = get_global_config()
+        web_url = config.web_url
 
         async with (
             get_httpx_client(state) as httpx_client,
@@ -594,6 +607,7 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
                 health_check_path=self.health_check_path,
                 httpx_client=httpx_client,
                 max_num_sandboxes=self.max_num_sandboxes,
+                web_url=web_url,
                 extra_hosts=self.extra_hosts,
                 startup_grace_seconds=self.startup_grace_seconds,
                 use_host_network=self.use_host_network,
