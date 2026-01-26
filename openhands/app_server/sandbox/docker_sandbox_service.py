@@ -173,7 +173,7 @@ class DockerSandboxService(SandboxService):
                 if port_bindings:
                     for container_port, host_bindings in port_bindings.items():
                         if host_bindings:
-                            host_port = host_bindings[0]['HostPort']
+                            host_port = int(host_bindings[0]['HostPort'])
                             matching_port = next(
                                 (
                                     ep
@@ -326,6 +326,15 @@ class DockerSandboxService(SandboxService):
         self, sandbox_spec_id: str | None = None, sandbox_id: str | None = None
     ) -> SandboxInfo:
         """Start a new sandbox."""
+        # Warn about port collision risk when using host network mode with multiple sandboxes
+        if self.use_host_network and self.max_num_sandboxes > 1:
+            _logger.warning(
+                'Host network mode is enabled with max_num_sandboxes > 1. '
+                'Multiple sandboxes will attempt to bind to the same ports, '
+                'which may cause port collision errors. Consider setting '
+                'max_num_sandboxes=1 when using host network mode.'
+            )
+
         # Enforce sandbox limits by cleaning up old sandboxes
         await self.pause_old_sandboxes(self.max_num_sandboxes - 1)
 
@@ -392,6 +401,9 @@ class DockerSandboxService(SandboxService):
 
         # Determine network mode
         network_mode = 'host' if self.use_host_network else None
+
+        if self.use_host_network:
+            _logger.info(f'Starting sandbox {container_name} with host network mode')
 
         try:
             # Create and start the container
