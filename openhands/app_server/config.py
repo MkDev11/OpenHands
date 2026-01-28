@@ -232,13 +232,6 @@ def config_from_env() -> AppServerConfig:
                         )
                 if mounts:
                     docker_sandbox_kwargs['mounts'] = mounts
-            # Support SANDBOX_USE_HOST_NETWORK environment variable
-            if os.getenv('SANDBOX_USE_HOST_NETWORK', '').lower() in (
-                'true',
-                '1',
-                'yes',
-            ):
-                docker_sandbox_kwargs['use_host_network'] = True
             config.sandbox = DockerSandboxServiceInjector(**docker_sandbox_kwargs)
 
     if config.sandbox_spec is None:

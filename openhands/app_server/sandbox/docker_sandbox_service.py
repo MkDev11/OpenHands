@@ -581,7 +581,12 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
         ),
     )
     use_host_network: bool = Field(
-        default=False,
+        default=os.getenv('SANDBOX_USE_HOST_NETWORK', '').lower()
+        in (
+            'true',
+            '1',
+            'yes',
+        ),
         description=(
             'Whether to use host networking mode for sandbox containers. '
             'When enabled, containers share the host network namespace, '
