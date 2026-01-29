@@ -1224,15 +1224,24 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
     ) -> AppConversation | None:
         """Update an app conversation and return it. Return None if the conversation
         did not exist.
+
+        Only fields that are explicitly set in the request will be updated.
+        This allows partial updates where only specific fields are modified.
+        Fields can be set to None to clear them (e.g., removing a repository).
         """
         info = await self.app_conversation_info_service.get_app_conversation_info(
             conversation_id
         )
         if info is None:
             return None
-        for field_name in AppConversationUpdateRequest.model_fields:
+
+        # Only update fields that were explicitly provided in the request
+        # This uses Pydantic's model_fields_set to detect which fields were set,
+        # allowing us to distinguish between "not provided" and "explicitly set to None"
+        for field_name in request.model_fields_set:
             value = getattr(request, field_name)
             setattr(info, field_name, value)
+
         info = await self.app_conversation_info_service.save_app_conversation_info(info)
         conversations = await self._build_app_conversations([info])
         return conversations[0]

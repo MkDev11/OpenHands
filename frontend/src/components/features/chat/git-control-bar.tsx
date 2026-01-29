@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GitControlBarRepoButton } from "./git-control-bar-repo-button";
 import { GitControlBarBranchButton } from "./git-control-bar-branch-button";
@@ -10,6 +11,7 @@ import { useUnifiedWebSocketStatus } from "#/hooks/use-unified-websocket-status"
 import { Provider } from "#/types/settings";
 import { I18nKey } from "#/i18n/declaration";
 import { GitControlBarTooltipWrapper } from "./git-control-bar-tooltip-wrapper";
+import { ChangeRepositoryModal } from "./change-repository-modal";
 
 interface GitControlBarProps {
   onSuggestionsClick: (value: string) => void;
@@ -17,6 +19,7 @@ interface GitControlBarProps {
 
 export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   const { t } = useTranslation();
+  const [isChangeRepoModalOpen, setIsChangeRepoModalOpen] = useState(false);
 
   const { data: conversation } = useActiveConversation();
   const { repositoryInfo } = useTaskPolling();
@@ -49,6 +52,21 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
             gitProvider={gitProvider}
           />
         </GitControlBarTooltipWrapper>
+
+        <button
+          type="button"
+          onClick={() => setIsChangeRepoModalOpen(true)}
+          className="px-2 py-1 text-xs text-[#A3A3A3] hover:text-white border border-[#525252] rounded-full hover:border-[#454545] transition-colors"
+          title={
+            hasRepository
+              ? t(I18nKey.CONVERSATION$CHANGE_REPOSITORY)
+              : t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)
+          }
+        >
+          {hasRepository
+            ? t(I18nKey.CONVERSATION$CHANGE_REPOSITORY)
+            : t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
+        </button>
 
         <GitControlBarTooltipWrapper
           tooltipMessage={t(I18nKey.COMMON$GIT_TOOLS_DISABLED_CONTENT)}
@@ -103,6 +121,14 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
           </>
         ) : null}
       </div>
+
+      <ChangeRepositoryModal
+        isOpen={isChangeRepoModalOpen}
+        onClose={() => setIsChangeRepoModalOpen(false)}
+        currentRepository={selectedRepository}
+        currentBranch={selectedBranch}
+        currentProvider={gitProvider}
+      />
     </div>
   );
 }
