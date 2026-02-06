@@ -27,6 +27,7 @@ from storage.org_member import OrgMember
 from storage.role_store import RoleStore
 from storage.user import User
 from storage.user_settings import UserSettings
+from utils.identity import resolve_display_name
 
 from openhands.utils.async_utils import GENERAL_TIMEOUT, call_async_from_sync
 
@@ -53,7 +54,8 @@ class UserStore:
             org = Org(
                 id=uuid.UUID(user_id),
                 name=f'user_{user_id}_org',
-                contact_name=user_info['preferred_username'],
+                contact_name=resolve_display_name(user_info)
+                or user_info.get('preferred_username', ''),
                 contact_email=user_info['email'],
                 v1_enabled=True,
             )
@@ -175,7 +177,8 @@ class UserStore:
                 id=uuid.UUID(user_id),
                 name=f'user_{user_id}_org',
                 org_version=user_settings.user_version,
-                contact_name=user_info['username'],
+                contact_name=resolve_display_name(user_info)
+                or user_info.get('username', ''),
                 contact_email=user_info['email'],
             )
             session.add(org)
@@ -354,7 +357,9 @@ class UserStore:
 
     @staticmethod
     async def downgrade_user(user_id: str) -> UserSettings | None:
-        """Downgrade a migrated user back to the pre-migration state.
+        """
+        This method can be removed once orgs is established - probably after Feb 15 2026
+        Downgrade a migrated user back to the pre-migration state.
 
         This reverses the migrate_user operation:
         1. Get the user's settings from user_settings table (migrated users) or
@@ -408,6 +413,24 @@ class UserStore:
                 )
                 return None
 
+            # Get org_members for this org - should only be one for personal orgs
+            org_members = (
+                session.query(OrgMember).filter(OrgMember.org_id == org.id).all()
+            )
+
+            if len(org_members) != 1:
+                logger.error(
+                    'user_store:downgrade_user:unexpected_org_members_count',
+                    extra={
+                        'user_id': user_id,
+                        'org_id': str(org.id),
+                        'org_members_count': len(org_members),
+                    },
+                )
+                return None
+
+            org_member = org_members[0]
+
             # Get the user_settings (for migrated users)
             user_settings = (
                 session.query(UserSettings)
@@ -420,40 +443,34 @@ class UserStore:
 
             # For new sign-ups after migration, user_settings won't exist
             # Fall back to getting data from org_members
-            if not user_settings:
+            if user_settings:
+                if org_member.llm_api_key and org_member.llm_api_key.get_secret_value():
+                    user_settings.llm_api_key = encrypt_legacy_value(
+                        org_member.llm_api_key.get_secret_value()
+                    )
+                if (
+                    org_member.llm_api_key_for_byor
+                    and org_member.llm_api_key_for_byor.get_secret_value()
+                ):
+                    user_settings.llm_api_key_for_byor = encrypt_legacy_value(
+                        org_member.llm_api_key_for_byor.get_secret_value()
+                    )
                 logger.info(
-                    'user_store:downgrade_user:user_settings_not_found_checking_org_members',
+                    'user_store:downgrade_user:updated_user_settings_from_org_member',
                     extra={'user_id': user_id},
                 )
-                # Get org_members for this org - should only be one for personal orgs
-                org_members = (
-                    session.query(OrgMember).filter(OrgMember.org_id == org.id).all()
-                )
-
-                if len(org_members) != 1:
-                    logger.error(
-                        'user_store:downgrade_user:unexpected_org_members_count',
-                        extra={
-                            'user_id': user_id,
-                            'org_id': str(org.id),
-                            'org_members_count': len(org_members),
-                        },
-                    )
-                    return None
-
-                org_member = org_members[0]
-
+            else:
                 # Create a new user_settings entry from OrgMember, User, and Org data
                 # This is needed for new sign-ups who don't have user_settings
                 user_settings = UserStore._create_user_settings_from_entities(
                     user_id, org_member, user, org
                 )
                 session.add(user_settings)
-                session.flush()
                 logger.info(
                     'user_store:downgrade_user:created_user_settings_from_org_member',
                     extra={'user_id': user_id},
                 )
+            session.flush()
 
             # Call LiteLLM downgrade
             from storage.lite_llm_manager import LiteLlmManager
@@ -741,6 +758,49 @@ class UserStore:
         """List all users."""
         with session_maker() as session:
             return session.query(User).all()
+
+    @staticmethod
+    async def backfill_contact_name(user_id: str, user_info: dict) -> None:
+        """Update contact_name on the personal org if it still has a username-style value.
+
+        Called during login to gradually fix existing users whose contact_name
+        was stored as their username (before the resolve_display_name fix).
+        Preserves custom values that were set via the PATCH endpoint.
+        """
+        real_name = resolve_display_name(user_info)
+        if not real_name:
+            logger.debug(
+                'backfill_contact_name:no_real_name',
+                extra={'user_id': user_id},
+            )
+            return
+
+        preferred_username = user_info.get('preferred_username', '')
+        username = user_info.get('username', '')
+
+        async with a_session_maker() as session:
+            result = await session.execute(
+                select(Org).filter(Org.id == uuid.UUID(user_id))
+            )
+            org = result.scalars().first()
+            if not org:
+                logger.debug(
+                    'backfill_contact_name:org_not_found',
+                    extra={'user_id': user_id},
+                )
+                return
+
+            if org.contact_name in (preferred_username, username):
+                logger.info(
+                    'backfill_contact_name:updated',
+                    extra={
+                        'user_id': user_id,
+                        'old': org.contact_name,
+                        'new': real_name,
+                    },
+                )
+                org.contact_name = real_name
+                await session.commit()
 
     # Prevent circular imports
     from typing import TYPE_CHECKING
