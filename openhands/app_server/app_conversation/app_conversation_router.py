@@ -591,10 +591,11 @@ async def get_conversation_skills(
 @router.post('/{conversation_id}/clear')
 async def clear_conversation(
     conversation_id: UUID,
+    user_context: UserContext = user_context_dependency,
     app_conversation_service: AppConversationService = (
         app_conversation_service_dependency
     ),
-) -> JSONResponse:
+) -> dict:
     """Clear all events from a conversation.
 
     This endpoint deletes all events associated with a conversation,
@@ -603,40 +604,48 @@ async def clear_conversation(
 
     Args:
         conversation_id: The UUID of the conversation to clear
+        user_context: The user context for authorization
 
     Returns:
-        JSONResponse with the number of events deleted
-    """
-    try:
-        # Verify conversation exists
-        conversation = await app_conversation_service.get_app_conversation(
-            conversation_id
-        )
-        if not conversation:
-            return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content={'error': f'Conversation {conversation_id} not found'},
-            )
+        dict with the number of events deleted
 
-        # Clear events using the event service
+    Raises:
+        HTTPException: 404 if conversation not found, 403 if unauthorized,
+                      500 on internal error
+    """
+    # Verify conversation exists and user has access
+    conversation = await app_conversation_service.get_app_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Conversation {conversation_id} not found',
+        )
+
+    # Verify user owns this conversation
+    current_user_id = await user_context.get_user_id()
+    if conversation.created_by_user_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You do not have permission to clear this conversation',
+        )
+
+    # Clear events using the event service
+    try:
         deleted_count = await app_conversation_service.clear_conversation_events(
             conversation_id
         )
-
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                'message': 'Conversation history cleared',
-                'deleted_events': deleted_count,
-                'conversation_id': str(conversation_id),
-            },
-        )
     except Exception as e:
         logger.error(f'Error clearing conversation {conversation_id}: {e}')
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={'error': f'Failed to clear conversation: {str(e)}'},
+            detail=f'Failed to clear conversation: {str(e)}',
         )
+
+    return {
+        'message': 'Conversation history cleared',
+        'deleted_events': deleted_count,
+        'conversation_id': str(conversation_id),
+    }
 
 
 @router.get('/{conversation_id}/download')

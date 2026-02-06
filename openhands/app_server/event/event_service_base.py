@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,8 @@ from openhands.app_server.app_conversation.app_conversation_models import (
 from openhands.app_server.event.event_service import EventService
 from openhands.app_server.event_callback.event_callback_models import EventKind
 from openhands.sdk import Event
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,17 +161,38 @@ class EventServiceBase(EventService, ABC):
         await loop.run_in_executor(None, self._store_event, path, event)
 
     async def clear_events(self, conversation_id: UUID) -> int:
-        """Clear all events for a conversation. Returns the number of events deleted."""
+        """Clear all events for a conversation.
+
+        Attempts to delete all event files for the given conversation.
+        If some files fail to delete (e.g., due to permissions or disk issues),
+        they are logged and skipped. The method continues deleting other files.
+
+        Args:
+            conversation_id: The UUID of the conversation whose events to clear.
+
+        Returns:
+            The number of events successfully deleted.
+        """
         conversation_path = await self.get_conversation_path(conversation_id)
         loop = asyncio.get_running_loop()
         paths = await loop.run_in_executor(None, self._search_paths, conversation_path)
         deleted_count = 0
+        failed_count = 0
         for path in paths:
             try:
                 await loop.run_in_executor(None, path.unlink)
                 deleted_count += 1
-            except Exception:
-                pass  # Skip files that can't be deleted
+            except Exception as e:
+                failed_count += 1
+                _logger.warning(
+                    f'Failed to delete event file {path} for conversation '
+                    f'{conversation_id}: {e}'
+                )
+        if failed_count > 0:
+            _logger.warning(
+                f'clear_events for {conversation_id}: deleted {deleted_count}, '
+                f'failed to delete {failed_count}'
+            )
         return deleted_count
 
     async def batch_get_events(
