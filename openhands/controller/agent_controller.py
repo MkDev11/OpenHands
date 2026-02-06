@@ -83,10 +83,11 @@ from openhands.events.event import Event
 from openhands.events.observation import (
     AgentDelegateObservation,
     AgentStateChangedObservation,
+    ConversationClearedObservation,
     ErrorObservation,
+    LoopDetectionObservation,
     NullObservation,
     Observation,
-    LoopDetectionObservation,
 )
 from openhands.events.serialization.event import truncate_content
 from openhands.llm.metrics import Metrics
@@ -486,6 +487,14 @@ class AgentController:
         if hasattr(event, 'hidden') and event.hidden:
             return
 
+        if (
+            isinstance(event, MessageAction)
+            and event.source == EventSource.USER
+            and (getattr(event, 'content', None) or '').strip() == '/clear'
+        ):
+            await self._clear_conversation_history(event)
+            return
+
         self.state_tracker.add_history(event)
 
         if isinstance(event, Action):
@@ -625,6 +634,37 @@ class AgentController:
                 # Option 3: Stop agent completely
                 await self.set_agent_state_to(AgentState.STOPPED)
             return
+
+    async def _clear_conversation_history(self, clear_action: MessageAction) -> None:
+        """Handle /clear: clear agent history, preserve runtime and session, add link event."""
+        try:
+            prev_end_id = clear_action.id
+            if prev_end_id is None or prev_end_id < 0:
+                prev_end_id = self.event_stream.get_latest_event_id()
+
+            link_text = (
+                f'Previous conversation (events 0–{prev_end_id}) available for reference.'
+                if prev_end_id >= 0
+                else 'Previous conversation available for reference.'
+            )
+            content = (
+                'Conversation history cleared. Runtime state preserved. '
+                f'{link_text} How can I help you?'
+            )
+            observation = ConversationClearedObservation(content=content)
+            observation._cause = clear_action.id  # type: ignore[attr-defined]
+            self.event_stream.add_event(observation, EventSource.ENVIRONMENT)
+
+            observation_id = self.event_stream.get_latest_event_id()
+            self.state.start_id = observation_id + 1
+            self.state.end_id = -1
+            self.state.history = []
+            self._cached_first_user_message = None
+            self.state_tracker.save_state()
+            await self.set_agent_state_to(AgentState.AWAITING_USER_INPUT)
+        except Exception as e:
+            self.log('error', f'Failed to clear conversation history: {e}')
+            raise
 
     def _reset(self) -> None:
         """Resets the agent controller."""

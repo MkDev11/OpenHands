@@ -28,6 +28,7 @@ from openhands.events.action.empty import NullAction
 from openhands.events.action.message import SystemMessageAction
 from openhands.events.observation import (
     AgentStateChangedObservation,
+    ConversationClearedObservation,
     ErrorObservation,
 )
 from openhands.events.observation.agent import RecallObservation
@@ -1900,3 +1901,42 @@ def test_system_message_in_event_stream(mock_agent_with_stats, test_event_stream
     assert isinstance(events[0], SystemMessageAction)
     assert events[0].content == 'Test system message'
     assert events[0].tools == ['test_tool']
+
+
+@pytest.mark.asyncio
+async def test_clear_command_resets_history_preserves_runtime(
+    mock_agent_with_stats, test_event_stream
+):
+    """Manual-check test: /clear clears agent history and adds link event; runtime preserved."""
+    mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
+
+    controller = AgentController(
+        agent=mock_agent,
+        event_stream=test_event_stream,
+        conversation_stats=conversation_stats,
+        iteration_delta=10,
+        sid='test',
+        confirmation_mode=False,
+        headless_mode=True,
+    )
+    controller.state.agent_state = AgentState.RUNNING
+    controller.state.history = [MessageAction(content='Some prior message')]
+
+    clear_msg = MessageAction(content='/clear')
+    clear_msg._source = EventSource.USER
+    test_event_stream.add_event(clear_msg, EventSource.USER)
+
+    await controller._on_event(clear_msg)
+
+    assert controller.state.history == []
+    assert controller.state.start_id >= 0
+    assert controller.state.end_id == -1
+    assert controller.get_agent_state() == AgentState.AWAITING_USER_INPUT
+
+    events = list(test_event_stream.search_events())
+    cleared_obs = [e for e in events if isinstance(e, ConversationClearedObservation)]
+    assert len(cleared_obs) == 1
+    assert 'Conversation history cleared' in cleared_obs[0].content
+    assert 'Runtime state preserved' in cleared_obs[0].content
+
+    await controller.close()

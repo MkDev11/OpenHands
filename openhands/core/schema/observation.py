@@ -68,3 +68,6 @@ class ObservationType(str, Enum):
 
     LOOP_DETECTION = 'loop_detection'
     """Results of a dead-loop detection"""
+
+    CONVERSATION_CLEARED = 'conversation_cleared'
+    """Conversation history was cleared; runtime state preserved."""

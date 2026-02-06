@@ -14,6 +14,9 @@ from openhands.events.observation.commands import (
     CmdOutputObservation,
     IPythonRunCellObservation,
 )
+from openhands.events.observation.conversation_clear import (
+    ConversationClearedObservation,
+)
 from openhands.events.observation.delegate import AgentDelegateObservation
 from openhands.events.observation.empty import (
     NullObservation,
@@ -52,6 +55,7 @@ observations = (
     MCPObservation,
     FileDownloadObservation,
     TaskTrackingObservation,
+    ConversationClearedObservation,
     LoopDetectionObservation,
 )
 
