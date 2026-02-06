@@ -618,7 +618,6 @@ async def clear_conversation(
         HTTPException: 404 if conversation not found, 403 if unauthorized,
                       500 on internal error
     """
-    # Verify conversation exists and user has access
     conversation = await app_conversation_service.get_app_conversation(conversation_id)
     if not conversation:
         raise HTTPException(
@@ -626,7 +625,6 @@ async def clear_conversation(
             detail=f'Conversation {conversation_id} not found',
         )
 
-    # Verify user owns this conversation
     current_user_id = await user_context.get_user_id()
     if conversation.created_by_user_id != current_user_id:
         raise HTTPException(
@@ -634,7 +632,6 @@ async def clear_conversation(
             detail='You do not have permission to clear this conversation',
         )
 
-    # Clear events using the event service
     try:
         deleted_count = await app_conversation_service.clear_conversation_events(
             conversation_id
