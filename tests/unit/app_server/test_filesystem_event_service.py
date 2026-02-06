@@ -217,3 +217,59 @@ class TestFilesystemEventServiceIntegration:
 
         result = await service.search_events(conversation_id)
         assert len(result.items) == 3
+
+
+class TestFilesystemEventServiceClearEvents:
+    """Test cases for clear_events method."""
+
+    @pytest.mark.asyncio
+    async def test_clear_events_deletes_all_events(
+        self, service: FilesystemEventService
+    ):
+        """Test that clear_events removes all events from a conversation."""
+        conversation_id = uuid4()
+        events = [create_token_event() for _ in range(5)]
+
+        for event in events:
+            await service.save_event(conversation_id, event)
+
+        result_before = await service.search_events(conversation_id)
+        assert len(result_before.items) == 5
+
+        deleted_count = await service.clear_events(conversation_id)
+
+        assert deleted_count == 5
+        result_after = await service.search_events(conversation_id)
+        assert len(result_after.items) == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_events_empty_conversation(
+        self, service: FilesystemEventService
+    ):
+        """Test that clear_events returns 0 for empty conversation."""
+        conversation_id = uuid4()
+
+        deleted_count = await service.clear_events(conversation_id)
+
+        assert deleted_count == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_events_does_not_affect_other_conversations(
+        self, service: FilesystemEventService
+    ):
+        """Test that clearing one conversation doesn't affect others."""
+        conversation_id_1 = uuid4()
+        conversation_id_2 = uuid4()
+
+        for _ in range(3):
+            await service.save_event(conversation_id_1, create_token_event())
+        for _ in range(2):
+            await service.save_event(conversation_id_2, create_token_event())
+
+        await service.clear_events(conversation_id_1)
+
+        result_1 = await service.search_events(conversation_id_1)
+        result_2 = await service.search_events(conversation_id_2)
+
+        assert len(result_1.items) == 0
+        assert len(result_2.items) == 2
