@@ -210,6 +210,13 @@ class TestBatchGetAppConversations:
         assert result[1] is None
 
 
+def _make_mock_user_context(user_id='test-user'):
+    """Create a mock UserContext for testing."""
+    context = MagicMock()
+    context.get_user_id = AsyncMock(return_value=user_id)
+    return context
+
+
 @pytest.mark.asyncio
 class TestClearConversation:
     """Test suite for clear_conversation endpoint."""
@@ -217,97 +224,126 @@ class TestClearConversation:
     async def test_clears_conversation_successfully(self):
         """Test that clearing a conversation returns success with deleted count.
 
-        Arrange: Create mock service with existing conversation
+        Arrange: Create mock service with existing conversation owned by user
         Act: Call clear_conversation
-        Assert: Returns 200 with deleted count
+        Assert: Returns dict with deleted count
         """
         # Arrange
+        user_id = 'test-user'
         conversation_id = uuid4()
-        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_conversation = _make_mock_app_conversation(conversation_id, user_id)
         mock_service = _make_mock_service(get_conversation_return=mock_conversation)
         mock_service.clear_conversation_events = AsyncMock(return_value=5)
+        mock_user_context = _make_mock_user_context(user_id)
 
         # Act
         result = await clear_conversation(
             conversation_id=conversation_id,
+            user_context=mock_user_context,
             app_conversation_service=mock_service,
         )
 
         # Assert
-        assert result.status_code == status.HTTP_200_OK
-        content = result.body.decode()
-        assert 'Conversation history cleared' in content
-        assert 'deleted_events' in content
+        assert result['message'] == 'Conversation history cleared'
+        assert result['deleted_events'] == 5
         mock_service.clear_conversation_events.assert_called_once_with(conversation_id)
 
     async def test_returns_404_for_nonexistent_conversation(self):
-        """Test that clearing a nonexistent conversation returns 404.
+        """Test that clearing a nonexistent conversation raises 404.
 
         Arrange: Create mock service that returns None for get_app_conversation
         Act: Call clear_conversation
-        Assert: Returns 404 with error message
+        Assert: Raises HTTPException with 404 status
         """
         # Arrange
         conversation_id = uuid4()
         mock_service = _make_mock_service(get_conversation_return=None)
+        mock_user_context = _make_mock_user_context()
 
-        # Act
-        result = await clear_conversation(
-            conversation_id=conversation_id,
-            app_conversation_service=mock_service,
-        )
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            await clear_conversation(
+                conversation_id=conversation_id,
+                user_context=mock_user_context,
+                app_conversation_service=mock_service,
+            )
 
-        # Assert
-        assert result.status_code == status.HTTP_404_NOT_FOUND
-        content = result.body.decode()
-        assert 'not found' in content
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        assert 'not found' in exc_info.value.detail
 
-    async def test_returns_500_on_service_error(self):
-        """Test that service errors return 500.
+    async def test_returns_403_for_unauthorized_user(self):
+        """Test that clearing another user's conversation raises 403.
 
-        Arrange: Create mock service that raises exception
+        Arrange: Create conversation owned by different user
         Act: Call clear_conversation
-        Assert: Returns 500 with error message
+        Assert: Raises HTTPException with 403 status
         """
         # Arrange
         conversation_id = uuid4()
-        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_conversation = _make_mock_app_conversation(conversation_id, 'other-user')
+        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
+        mock_user_context = _make_mock_user_context('test-user')
+
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            await clear_conversation(
+                conversation_id=conversation_id,
+                user_context=mock_user_context,
+                app_conversation_service=mock_service,
+            )
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert 'permission' in exc_info.value.detail
+
+    async def test_returns_500_on_service_error(self):
+        """Test that service errors raise 500.
+
+        Arrange: Create mock service that raises exception
+        Act: Call clear_conversation
+        Assert: Raises HTTPException with 500 status
+        """
+        # Arrange
+        user_id = 'test-user'
+        conversation_id = uuid4()
+        mock_conversation = _make_mock_app_conversation(conversation_id, user_id)
         mock_service = _make_mock_service(get_conversation_return=mock_conversation)
         mock_service.clear_conversation_events = AsyncMock(
             side_effect=Exception('Database error')
         )
+        mock_user_context = _make_mock_user_context(user_id)
 
-        # Act
-        result = await clear_conversation(
-            conversation_id=conversation_id,
-            app_conversation_service=mock_service,
-        )
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            await clear_conversation(
+                conversation_id=conversation_id,
+                user_context=mock_user_context,
+                app_conversation_service=mock_service,
+            )
 
-        # Assert
-        assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        content = result.body.decode()
-        assert 'Failed to clear conversation' in content
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert 'Failed to clear conversation' in exc_info.value.detail
 
     async def test_returns_zero_for_empty_conversation(self):
         """Test that clearing an empty conversation returns zero deleted count.
 
         Arrange: Create mock service with no events to delete
         Act: Call clear_conversation
-        Assert: Returns 200 with deleted_events=0
+        Assert: Returns dict with deleted_events=0
         """
         # Arrange
+        user_id = 'test-user'
         conversation_id = uuid4()
-        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_conversation = _make_mock_app_conversation(conversation_id, user_id)
         mock_service = _make_mock_service(get_conversation_return=mock_conversation)
         mock_service.clear_conversation_events = AsyncMock(return_value=0)
+        mock_user_context = _make_mock_user_context(user_id)
 
         # Act
         result = await clear_conversation(
             conversation_id=conversation_id,
+            user_context=mock_user_context,
             app_conversation_service=mock_service,
         )
 
         # Assert
-        assert result.status_code == status.HTTP_200_OK
-        content = result.body.decode()
-        assert 'deleted_events' in content
+        assert result['deleted_events'] == 0
