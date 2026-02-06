@@ -1968,7 +1968,6 @@ async def test_clear_command_restore_reloads_only_post_clear_events(
 
     assert controller.state.history == []
     assert controller.state.end_id == -1
-    start_id_after_clear = controller.state.start_id
 
     post_clear_msg = MessageAction(content='Hello again after clear')
     post_clear_msg._source = EventSource.USER
@@ -1977,9 +1976,7 @@ async def test_clear_command_restore_reloads_only_post_clear_events(
     controller.state_tracker._init_history(test_event_stream)
 
     assert len(controller.state.history) >= 1
-    contents = [
-        e.content for e in controller.state.history if hasattr(e, 'content')
-    ]
+    contents = [e.content for e in controller.state.history if hasattr(e, 'content')]
     assert 'Some prior message' not in contents
     assert '/clear' not in contents
     assert 'Hello again after clear' in contents
