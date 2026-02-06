@@ -1,6 +1,6 @@
 """Unit tests for the app_conversation_router endpoints.
 
-This module tests the batch_get_app_conversations endpoint,
+This module tests the batch_get_app_conversations and clear_conversation endpoints,
 focusing on UUID string parsing, validation, and error handling.
 """
 
@@ -15,6 +15,7 @@ from openhands.app_server.app_conversation.app_conversation_models import (
 )
 from openhands.app_server.app_conversation.app_conversation_router import (
     batch_get_app_conversations,
+    clear_conversation,
 )
 from openhands.app_server.sandbox.sandbox_models import SandboxStatus
 
@@ -207,3 +208,106 @@ class TestBatchGetAppConversations:
         assert result[0] is not None
         assert result[0].id == uuid1
         assert result[1] is None
+
+
+@pytest.mark.asyncio
+class TestClearConversation:
+    """Test suite for clear_conversation endpoint."""
+
+    async def test_clears_conversation_successfully(self):
+        """Test that clearing a conversation returns success with deleted count.
+
+        Arrange: Create mock service with existing conversation
+        Act: Call clear_conversation
+        Assert: Returns 200 with deleted count
+        """
+        # Arrange
+        conversation_id = uuid4()
+        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
+        mock_service.clear_conversation_events = AsyncMock(return_value=5)
+
+        # Act
+        result = await clear_conversation(
+            conversation_id=conversation_id,
+            app_conversation_service=mock_service,
+        )
+
+        # Assert
+        assert result.status_code == status.HTTP_200_OK
+        content = result.body.decode()
+        assert 'Conversation history cleared' in content
+        assert 'deleted_events' in content
+        mock_service.clear_conversation_events.assert_called_once_with(conversation_id)
+
+    async def test_returns_404_for_nonexistent_conversation(self):
+        """Test that clearing a nonexistent conversation returns 404.
+
+        Arrange: Create mock service that returns None for get_app_conversation
+        Act: Call clear_conversation
+        Assert: Returns 404 with error message
+        """
+        # Arrange
+        conversation_id = uuid4()
+        mock_service = _make_mock_service(get_conversation_return=None)
+
+        # Act
+        result = await clear_conversation(
+            conversation_id=conversation_id,
+            app_conversation_service=mock_service,
+        )
+
+        # Assert
+        assert result.status_code == status.HTTP_404_NOT_FOUND
+        content = result.body.decode()
+        assert 'not found' in content
+
+    async def test_returns_500_on_service_error(self):
+        """Test that service errors return 500.
+
+        Arrange: Create mock service that raises exception
+        Act: Call clear_conversation
+        Assert: Returns 500 with error message
+        """
+        # Arrange
+        conversation_id = uuid4()
+        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
+        mock_service.clear_conversation_events = AsyncMock(
+            side_effect=Exception('Database error')
+        )
+
+        # Act
+        result = await clear_conversation(
+            conversation_id=conversation_id,
+            app_conversation_service=mock_service,
+        )
+
+        # Assert
+        assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        content = result.body.decode()
+        assert 'Failed to clear conversation' in content
+
+    async def test_returns_zero_for_empty_conversation(self):
+        """Test that clearing an empty conversation returns zero deleted count.
+
+        Arrange: Create mock service with no events to delete
+        Act: Call clear_conversation
+        Assert: Returns 200 with deleted_events=0
+        """
+        # Arrange
+        conversation_id = uuid4()
+        mock_conversation = _make_mock_app_conversation(conversation_id)
+        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
+        mock_service.clear_conversation_events = AsyncMock(return_value=0)
+
+        # Act
+        result = await clear_conversation(
+            conversation_id=conversation_id,
+            app_conversation_service=mock_service,
+        )
+
+        # Assert
+        assert result.status_code == status.HTTP_200_OK
+        content = result.body.decode()
+        assert 'deleted_events' in content
