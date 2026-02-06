@@ -1940,3 +1940,87 @@ async def test_clear_command_resets_history_preserves_runtime(
     assert 'Runtime state preserved' in cleared_obs[0].content
 
     await controller.close()
+
+
+@pytest.mark.asyncio
+async def test_clear_command_restore_reloads_only_post_clear_events(
+    mock_agent_with_stats, test_event_stream
+):
+    """After /clear, simulating a restore (re-run _init_history) reloads only events after the clear."""
+    mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
+
+    controller = AgentController(
+        agent=mock_agent,
+        event_stream=test_event_stream,
+        conversation_stats=conversation_stats,
+        iteration_delta=10,
+        sid='test',
+        confirmation_mode=False,
+        headless_mode=True,
+    )
+    controller.state.agent_state = AgentState.RUNNING
+    controller.state.history = [MessageAction(content='Some prior message')]
+
+    clear_msg = MessageAction(content='/clear')
+    clear_msg._source = EventSource.USER
+    test_event_stream.add_event(clear_msg, EventSource.USER)
+    await controller._on_event(clear_msg)
+
+    assert controller.state.history == []
+    assert controller.state.end_id == -1
+    start_id_after_clear = controller.state.start_id
+
+    post_clear_msg = MessageAction(content='Hello again after clear')
+    post_clear_msg._source = EventSource.USER
+    test_event_stream.add_event(post_clear_msg, EventSource.USER)
+
+    controller.state_tracker._init_history(test_event_stream)
+
+    assert len(controller.state.history) >= 1
+    contents = [
+        e.content for e in controller.state.history if hasattr(e, 'content')
+    ]
+    assert 'Some prior message' not in contents
+    assert '/clear' not in contents
+    assert 'Hello again after clear' in contents
+
+    await controller.close()
+
+
+@pytest.mark.asyncio
+async def test_clear_command_view_after_restore_excludes_pre_clear(
+    mock_agent_with_stats, test_event_stream
+):
+    """After /clear and restore, the view (LLM context) contains only post-clear events."""
+    mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
+
+    controller = AgentController(
+        agent=mock_agent,
+        event_stream=test_event_stream,
+        conversation_stats=conversation_stats,
+        iteration_delta=10,
+        sid='test',
+        confirmation_mode=False,
+        headless_mode=True,
+    )
+    controller.state.agent_state = AgentState.RUNNING
+    controller.state.history = [MessageAction(content='Pre-clear message')]
+
+    clear_msg = MessageAction(content='/clear')
+    clear_msg._source = EventSource.USER
+    test_event_stream.add_event(clear_msg, EventSource.USER)
+    await controller._on_event(clear_msg)
+
+    test_event_stream.add_event(
+        MessageAction(content='Post-clear only'),
+        EventSource.USER,
+    )
+    controller.state_tracker._init_history(test_event_stream)
+
+    view = controller.state.view
+    view_contents = [e.content for e in view.events if hasattr(e, 'content')]
+    assert 'Pre-clear message' not in view_contents
+    assert '/clear' not in view_contents
+    assert 'Post-clear only' in view_contents
+
+    await controller.close()
