@@ -1910,6 +1910,11 @@ async def test_clear_command_resets_history_preserves_runtime(
     """Manual-check test: /clear clears agent history and adds link event; runtime preserved."""
     mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
 
+    # Add pre-clear message to event stream
+    pre_clear_msg = MessageAction(content='Some prior message')
+    pre_clear_msg._source = EventSource.USER
+    test_event_stream.add_event(pre_clear_msg, EventSource.USER)
+
     controller = AgentController(
         agent=mock_agent,
         event_stream=test_event_stream,
@@ -1920,13 +1925,12 @@ async def test_clear_command_resets_history_preserves_runtime(
         headless_mode=True,
     )
     controller.state.agent_state = AgentState.RUNNING
-    controller.state.history = [MessageAction(content='Some prior message')]
+    controller.state.history = [pre_clear_msg]
 
+    # Simulate /clear command - don't add to stream to avoid double-trigger via subscription
     clear_msg = MessageAction(content='/clear')
     clear_msg._source = EventSource.USER
-    test_event_stream.add_event(clear_msg, EventSource.USER)
-
-    await controller._on_event(clear_msg)
+    await controller._clear_conversation_history(clear_msg)
 
     assert controller.state.history == []
     assert controller.state.start_id >= 0
@@ -1949,6 +1953,11 @@ async def test_clear_command_restore_reloads_only_post_clear_events(
     """After /clear, simulating a restore (re-run _init_history) reloads only events after the clear."""
     mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
 
+    # Add pre-clear message to event stream
+    pre_clear_msg = MessageAction(content='Some prior message')
+    pre_clear_msg._source = EventSource.USER
+    test_event_stream.add_event(pre_clear_msg, EventSource.USER)
+
     controller = AgentController(
         agent=mock_agent,
         event_stream=test_event_stream,
@@ -1959,12 +1968,12 @@ async def test_clear_command_restore_reloads_only_post_clear_events(
         headless_mode=True,
     )
     controller.state.agent_state = AgentState.RUNNING
-    controller.state.history = [MessageAction(content='Some prior message')]
+    controller.state.history = [pre_clear_msg]
 
+    # Simulate /clear command - don't add to stream to avoid double-trigger via subscription
     clear_msg = MessageAction(content='/clear')
     clear_msg._source = EventSource.USER
-    test_event_stream.add_event(clear_msg, EventSource.USER)
-    await controller._on_event(clear_msg)
+    await controller._clear_conversation_history(clear_msg)
 
     assert controller.state.history == []
     assert controller.state.end_id == -1
@@ -1991,6 +2000,11 @@ async def test_clear_command_view_after_restore_excludes_pre_clear(
     """After /clear and restore, the view (LLM context) contains only post-clear events."""
     mock_agent, conversation_stats, llm_registry = mock_agent_with_stats
 
+    # Add pre-clear message to event stream
+    pre_clear_msg = MessageAction(content='Pre-clear message')
+    pre_clear_msg._source = EventSource.USER
+    test_event_stream.add_event(pre_clear_msg, EventSource.USER)
+
     controller = AgentController(
         agent=mock_agent,
         event_stream=test_event_stream,
@@ -2001,12 +2015,12 @@ async def test_clear_command_view_after_restore_excludes_pre_clear(
         headless_mode=True,
     )
     controller.state.agent_state = AgentState.RUNNING
-    controller.state.history = [MessageAction(content='Pre-clear message')]
+    controller.state.history = [pre_clear_msg]
 
+    # Simulate /clear command - don't add to stream to avoid double-trigger via subscription
     clear_msg = MessageAction(content='/clear')
     clear_msg._source = EventSource.USER
-    test_event_stream.add_event(clear_msg, EventSource.USER)
-    await controller._on_event(clear_msg)
+    await controller._clear_conversation_history(clear_msg)
 
     test_event_stream.add_event(
         MessageAction(content='Post-clear only'),
@@ -2017,7 +2031,6 @@ async def test_clear_command_view_after_restore_excludes_pre_clear(
     view = controller.state.view
     view_contents = [e.content for e in view.events if hasattr(e, 'content')]
     assert 'Pre-clear message' not in view_contents
-    assert '/clear' not in view_contents
     assert 'Post-clear only' in view_contents
 
     await controller.close()

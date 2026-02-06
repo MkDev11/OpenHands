@@ -638,9 +638,14 @@ class AgentController:
     async def _clear_conversation_history(self, clear_action: MessageAction) -> None:
         """Handle /clear: clear agent history, preserve runtime and session, add link event."""
         try:
+            self.log('info', '/clear command received - clearing conversation history')
             prev_end_id = clear_action.id
             if prev_end_id is None or prev_end_id < 0:
                 prev_end_id = self.event_stream.get_latest_event_id()
+            self.log(
+                'info',
+                f'/clear: previous end_id={prev_end_id}, history_len={len(self.state.history)}',
+            )
 
             link_text = (
                 f'Previous conversation (events 0–{prev_end_id}) available for reference.'
@@ -656,11 +661,23 @@ class AgentController:
             self.event_stream.add_event(observation, EventSource.ENVIRONMENT)
 
             observation_id = self.event_stream.get_latest_event_id()
-            self.state.start_id = observation_id + 1
+            new_start_id = observation_id + 1
+            self.log(
+                'info',
+                f'/clear: emitted ConversationClearedObservation (id={observation_id})',
+            )
+            self.log(
+                'info',
+                f'/clear: setting start_id={new_start_id}, end_id=-1, history=[]',
+            )
+            self.state.start_id = new_start_id
             self.state.end_id = -1
             self.state.history = []
             self._cached_first_user_message = None
             self.state_tracker.save_state()
+            self.log(
+                'info', '/clear: state saved, transitioning to AWAITING_USER_INPUT'
+            )
             await self.set_agent_state_to(AgentState.AWAITING_USER_INPUT)
         except Exception as e:
             self.log('error', f'Failed to clear conversation history: {e}')
