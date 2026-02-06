@@ -157,6 +157,20 @@ class EventServiceBase(EventService, ABC):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._store_event, path, event)
 
+    async def clear_events(self, conversation_id: UUID) -> int:
+        """Clear all events for a conversation. Returns the number of events deleted."""
+        conversation_path = await self.get_conversation_path(conversation_id)
+        loop = asyncio.get_running_loop()
+        paths = await loop.run_in_executor(None, self._search_paths, conversation_path)
+        deleted_count = 0
+        for path in paths:
+            try:
+                await loop.run_in_executor(None, path.unlink)
+                deleted_count += 1
+            except Exception:
+                pass  # Skip files that can't be deleted
+        return deleted_count
+
     async def batch_get_events(
         self, conversation_id: UUID, event_ids: list[UUID]
     ) -> list[Event | None]:

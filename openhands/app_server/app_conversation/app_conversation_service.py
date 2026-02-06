@@ -140,6 +140,19 @@ class AppConversationService(ABC):
         Returns the zip file as bytes.
         """
 
+    @abstractmethod
+    async def clear_conversation_events(self, conversation_id: UUID) -> int:
+        """Clear all events from a conversation.
+
+        Args:
+            conversation_id: The UUID of the conversation to clear.
+
+        This method should delete all events associated with the conversation
+        while preserving the conversation metadata itself.
+
+        Returns the number of events deleted.
+        """
+
 
 class AppConversationServiceInjector(
     DiscriminatedUnionMixin, Injector[AppConversationService], ABC
