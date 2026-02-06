@@ -588,6 +588,57 @@ async def get_conversation_skills(
         )
 
 
+@router.post('/{conversation_id}/clear')
+async def clear_conversation(
+    conversation_id: UUID,
+    app_conversation_service: AppConversationService = (
+        app_conversation_service_dependency
+    ),
+) -> JSONResponse:
+    """Clear all events from a conversation.
+
+    This endpoint deletes all events associated with a conversation,
+    effectively resetting the conversation history while preserving
+    the conversation metadata.
+
+    Args:
+        conversation_id: The UUID of the conversation to clear
+
+    Returns:
+        JSONResponse with the number of events deleted
+    """
+    try:
+        # Verify conversation exists
+        conversation = await app_conversation_service.get_app_conversation(
+            conversation_id
+        )
+        if not conversation:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={'error': f'Conversation {conversation_id} not found'},
+            )
+
+        # Clear events using the event service
+        deleted_count = await app_conversation_service.clear_conversation_events(
+            conversation_id
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': 'Conversation history cleared',
+                'deleted_events': deleted_count,
+                'conversation_id': str(conversation_id),
+            },
+        )
+    except Exception as e:
+        logger.error(f'Error clearing conversation {conversation_id}: {e}')
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={'error': f'Failed to clear conversation: {str(e)}'},
+        )
+
+
 @router.get('/{conversation_id}/download')
 async def export_conversation(
     conversation_id: UUID,
