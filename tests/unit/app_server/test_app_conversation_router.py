@@ -244,7 +244,10 @@ class TestClearConversation:
         )
 
         # Assert
-        assert result['message'] == 'Conversation history cleared'
+        assert (
+            result['message']
+            == 'Conversation history cleared. Runtime state preserved.'
+        )
         assert result['deleted_events'] == 5
         mock_service.clear_conversation_events.assert_called_once_with(conversation_id)
 

@@ -639,7 +639,7 @@ async def clear_conversation(
         )
 
     return {
-        'message': 'Conversation history cleared',
+        'message': 'Conversation history cleared. Runtime state preserved.',
         'deleted_events': deleted_count,
         'conversation_id': str(conversation_id),
     }
