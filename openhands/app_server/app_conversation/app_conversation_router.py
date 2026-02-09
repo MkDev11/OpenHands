@@ -643,24 +643,55 @@ async def clear_conversation(
             parent_conversation_id=conversation_id,
         )
 
+        # Consume the full async iterator to ensure the conversation is fully
+        # created and saved to the database before returning to the client.
+        # Unlike the regular start endpoint (which returns immediately and
+        # processes in the background), /clear needs the conversation to exist
+        # so the frontend can redirect to it.
         async_iter = app_conversation_service.start_app_conversation(start_request)
-        start_task = await anext(async_iter)
-        asyncio.create_task(_consume_remaining(async_iter, db_session, httpx_client))
+        start_task: AppConversationStartTask | None = None
+        async for task in async_iter:
+            start_task = task
+
+        if start_task is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='Failed to create new conversation: no task returned',
+            )
+
+        new_id = start_task.app_conversation_id
+        if new_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='New conversation was not created successfully',
+            )
+        # Use hex format (no dashes) to match the convention used in URLs
+        new_conversation_id = (
+            new_id.hex if isinstance(new_id, UUID) else str(new_id).replace('-', '')
+        )
+        parent_id = (
+            conversation_id.hex
+            if isinstance(conversation_id, UUID)
+            else str(conversation_id).replace('-', '')
+        )
 
         return {
             'message': 'Conversation history cleared. Runtime state preserved.',
-            'new_conversation_id': str(start_task.id),
-            'parent_conversation_id': str(conversation_id),
+            'new_conversation_id': new_conversation_id,
+            'parent_conversation_id': parent_id,
             'status': start_task.status.value,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f'Error clearing conversation {conversation_id}: {e}')
-        await db_session.close()
-        await httpx_client.aclose()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to clear conversation: {str(e)}',
         )
+    finally:
+        await db_session.close()
+        await httpx_client.aclose()
 
 
 @router.get('/{conversation_id}/download')

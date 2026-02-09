@@ -246,6 +246,7 @@ def _make_mock_start_task(task_id=None, status_value='WORKING'):
 
     task = MagicMock()
     task.id = task_id or uuid4()
+    task.app_conversation_id = task_id or task.id
     task.status = AppConversationStartTaskStatus(status_value)
     return task
 
@@ -291,8 +292,8 @@ class TestClearConversation:
             result['message']
             == 'Conversation history cleared. Runtime state preserved.'
         )
-        assert result['new_conversation_id'] == str(new_task_id)
-        assert result['parent_conversation_id'] == str(conversation_id)
+        assert result['new_conversation_id'] == new_task_id.hex
+        assert result['parent_conversation_id'] == conversation_id.hex
         assert result['status'] == 'WORKING'
 
     async def test_returns_404_for_nonexistent_conversation(self):

@@ -27,7 +27,6 @@ from openhands.app_server.sandbox.sandbox_models import (
     SandboxStatus,
 )
 from openhands.app_server.sandbox.sandbox_service import (
-    ALLOW_CORS_ORIGINS_VARIABLE,
     SESSION_API_KEY_VARIABLE,
     WEBHOOK_CALLBACK_VARIABLE,
     SandboxService,
@@ -366,8 +365,21 @@ class DockerSandboxService(SandboxService):
         # Set CORS origins for remote browser access when web_url is configured.
         # This allows the agent-server container to accept requests from the
         # frontend when running OpenHands on a remote machine.
+        # Each origin gets its own indexed env var (OH_ALLOW_CORS_ORIGINS_0, _1, etc.)
+        cors_origins: list[str] = []
         if self.web_url:
-            env_vars[ALLOW_CORS_ORIGINS_VARIABLE] = self.web_url
+            cors_origins.append(self.web_url)
+        # Also include any explicitly permitted CORS origins (e.g. external IP)
+        permitted = os.environ.get('PERMITTED_CORS_ORIGINS', '')
+        if permitted:
+            cors_origins.extend(o.strip() for o in permitted.split(',') if o.strip())
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        for origin in cors_origins:
+            if origin not in seen:
+                seen.add(origin)
+                idx = len(seen) - 1
+                env_vars[f'OH_ALLOW_CORS_ORIGINS_{idx}'] = origin
 
         # Prepare port mappings and add port environment variables
         # When using host network, container ports are directly accessible on the host

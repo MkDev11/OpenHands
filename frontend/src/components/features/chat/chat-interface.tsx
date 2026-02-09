@@ -1,6 +1,6 @@
 import React from "react";
 import { usePostHog } from "posthog-js/react";
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { convertImageToBase64 } from "#/utils/convert-image-to-base-64";
 import { TrajectoryActions } from "../trajectory/trajectory-actions";
@@ -138,6 +138,7 @@ export function ChatInterface() {
   const [feedbackModalIsOpen, setFeedbackModalIsOpen] = React.useState(false);
   const { selectedRepository, replayJson } = useInitialQueryStore();
   const params = useParams();
+  const navigate = useNavigate();
   const { mutateAsync: uploadFiles } = useUnifiedUploadFiles();
 
   const optimisticUserMessage = getOptimisticUserMessage();
@@ -218,18 +219,28 @@ export function ChatInterface() {
     originalFiles: File[],
   ) => {
     // Handle /clear command for V1 conversations
-    if (
-      content.trim() === "/clear" &&
-      isV1Conversation &&
-      params.conversationId
-    ) {
+    if (content.trim() === "/clear") {
+      if (!isV1Conversation) {
+        displayErrorToast(
+          "The /clear command is only available for V1 conversations",
+        );
+        return;
+      }
+      if (!params.conversationId) {
+        displayErrorToast("No conversation ID found");
+        return;
+      }
       try {
         const result = await V1ConversationService.clearConversation(
           params.conversationId,
         );
+        if (!result.new_conversation_id) {
+          displayErrorToast("Server did not return a new conversation ID");
+          return;
+        }
         displaySuccessToast(result.message);
-        // Navigate to the new conversation
-        window.location.href = `/conversations/${result.new_conversation_id}`;
+        // Navigate to the new conversation using React Router
+        navigate(`/conversations/${result.new_conversation_id}`);
         return;
       } catch (error) {
         displayErrorToast(
