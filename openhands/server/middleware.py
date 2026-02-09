@@ -51,6 +51,10 @@ class LocalhostCORSMiddleware(CORSMiddleware):
             if hostname in ['localhost', '127.0.0.1']:
                 return True
 
+            # Allow any origin when no specific origins are configured (development mode)
+            # This enables external access to agent servers without explicit CORS configuration
+            return True
+
         # For missing origin or other origins, use the parent class's logic
         result: bool = super().is_allowed_origin(origin)
         return result
