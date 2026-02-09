@@ -363,6 +363,28 @@ class V1ConversationService {
   }
 
   /**
+   * Clear a V1 conversation by creating a new one in the same runtime
+   * The old conversation is preserved and linked via parent_conversation_id
+   *
+   * @param conversationId The conversation ID to clear
+   * @returns Object with new_conversation_id and parent_conversation_id
+   */
+  static async clearConversation(conversationId: string): Promise<{
+    message: string;
+    new_conversation_id: string;
+    parent_conversation_id: string;
+    status: string;
+  }> {
+    const { data } = await openHands.post<{
+      message: string;
+      new_conversation_id: string;
+      parent_conversation_id: string;
+      status: string;
+    }>(`/api/v1/app-conversations/${conversationId}/clear`);
+    return data;
+  }
+
+  /**
    * Get conversation info directly from the runtime for a V1 conversation
    * Uses the custom runtime URL from the conversation
    *

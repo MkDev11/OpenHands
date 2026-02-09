@@ -24,7 +24,10 @@ import { USE_PLANNING_AGENT } from "#/utils/feature-flags";
 import { ScrollToBottomButton } from "#/components/shared/buttons/scroll-to-bottom-button";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
 import { ChatMessagesSkeleton } from "./chat-messages-skeleton";
-import { displayErrorToast } from "#/utils/custom-toast-handlers";
+import {
+  displayErrorToast,
+  displaySuccessToast,
+} from "#/utils/custom-toast-handlers";
 import { useErrorMessageStore } from "#/stores/error-message-store";
 import { useOptimisticUserMessageStore } from "#/stores/optimistic-user-message-store";
 import { useEventStore } from "#/stores/use-event-store";
@@ -54,6 +57,7 @@ import { useTaskPolling } from "#/hooks/query/use-task-polling";
 import { useConversationWebSocket } from "#/contexts/conversation-websocket-context";
 import ChatStatusIndicator from "./chat-status-indicator";
 import { getStatusColor, getStatusText } from "#/utils/utils";
+import V1ConversationService from "#/api/conversation-service/v1-conversation-service.api";
 
 function getEntryPoint(
   hasRepository: boolean | null,
@@ -213,6 +217,28 @@ export function ChatInterface() {
     originalImages: File[],
     originalFiles: File[],
   ) => {
+    // Handle /clear command for V1 conversations
+    if (
+      content.trim() === "/clear" &&
+      isV1Conversation &&
+      params.conversationId
+    ) {
+      try {
+        const result = await V1ConversationService.clearConversation(
+          params.conversationId,
+        );
+        displaySuccessToast(result.message);
+        // Navigate to the new conversation
+        window.location.href = `/conversations/${result.new_conversation_id}`;
+        return;
+      } catch (error) {
+        displayErrorToast(
+          `Failed to clear conversation: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+        return;
+      }
+    }
+
     // Create mutable copies of the arrays
     const images = [...originalImages];
     const files = [...originalFiles];
