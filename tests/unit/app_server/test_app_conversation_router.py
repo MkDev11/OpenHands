@@ -373,6 +373,36 @@ class TestClearConversation:
         mock_db_session.close.assert_called_once()
         mock_httpx_client.aclose.assert_called_once()
 
+    async def test_returns_500_when_no_task_yielded(self):
+        """Test that an empty generator (no tasks) raises 500."""
+        user_id = 'test-user'
+        conversation_id = uuid4()
+        mock_conversation = _make_mock_app_conversation(conversation_id, user_id)
+        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
+
+        async def mock_empty_generator(request):
+            return
+            yield  # pragma: no cover
+
+        mock_service.start_app_conversation = mock_empty_generator
+        mock_user_context = _make_mock_user_context(user_id)
+        mock_request = _make_mock_request()
+        mock_db_session = _make_mock_db_session()
+        mock_httpx_client = _make_mock_httpx_client()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await clear_conversation(
+                request=mock_request,
+                conversation_id=conversation_id,
+                user_context=mock_user_context,
+                db_session=mock_db_session,
+                httpx_client=mock_httpx_client,
+                app_conversation_service=mock_service,
+            )
+
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert 'no task returned' in exc_info.value.detail
+
     async def test_inherits_parent_configuration(self):
         """Test that start request includes parent_conversation_id for inheritance."""
         user_id = 'test-user'
