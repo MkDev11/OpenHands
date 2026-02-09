@@ -1460,16 +1460,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
 
             return zip_content
 
-    async def clear_conversation_events(self, conversation_id: UUID) -> int:
-        """Clear all events from a conversation.
-
-        Args:
-            conversation_id: The UUID of the conversation to clear.
-
-        Returns the number of events deleted.
-        """
-        return await self.event_service.clear_events(conversation_id)
-
 
 class LiveStatusAppConversationServiceInjector(AppConversationServiceInjector):
     sandbox_startup_timeout: int = Field(

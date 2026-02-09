@@ -47,10 +47,6 @@ class EventService(ABC):
     async def save_event(self, conversation_id: UUID, event: Event):
         """Save an event. Internal method intended not be part of the REST api."""
 
-    @abstractmethod
-    async def clear_events(self, conversation_id: UUID) -> int:
-        """Clear all events for a conversation. Returns the number of events deleted."""
-
     async def batch_get_events(
         self, conversation_id: UUID, event_ids: list[UUID]
     ) -> list[Event | None]:
