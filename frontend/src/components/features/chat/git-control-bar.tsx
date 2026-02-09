@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router";
 import { GitControlBarRepoButton } from "./git-control-bar-repo-button";
 import { GitControlBarBranchButton } from "./git-control-bar-branch-button";
 import { GitControlBarPullButton } from "./git-control-bar-pull-button";
@@ -8,10 +9,13 @@ import { GitControlBarPrButton } from "./git-control-bar-pr-button";
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 import { useTaskPolling } from "#/hooks/query/use-task-polling";
 import { useUnifiedWebSocketStatus } from "#/hooks/use-unified-websocket-status";
+import { useSendMessage } from "#/hooks/use-send-message";
+import { useUpdateConversationRepository } from "#/hooks/mutation/use-update-conversation-repository";
 import { Provider } from "#/types/settings";
+import { Branch, GitRepository } from "#/types/git";
 import { I18nKey } from "#/i18n/declaration";
 import { GitControlBarTooltipWrapper } from "./git-control-bar-tooltip-wrapper";
-import { ChangeRepositoryModal } from "./change-repository-modal";
+import { OpenRepositoryModal } from "./open-repository-modal";
 
 interface GitControlBarProps {
   onSuggestionsClick: (value: string) => void;
@@ -19,11 +23,14 @@ interface GitControlBarProps {
 
 export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   const { t } = useTranslation();
-  const [isChangeRepoModalOpen, setIsChangeRepoModalOpen] = useState(false);
+  const { conversationId } = useParams<{ conversationId: string }>();
+  const [isOpenRepoModalOpen, setIsOpenRepoModalOpen] = useState(false);
 
   const { data: conversation } = useActiveConversation();
   const { repositoryInfo } = useTaskPolling();
   const webSocketStatus = useUnifiedWebSocketStatus();
+  const { send } = useSendMessage();
+  const { mutate: updateRepository } = useUpdateConversationRepository();
 
   // Priority: conversation data > task data
   // This ensures we show repository info immediately from task, then transition to conversation data
@@ -39,34 +46,47 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   // Enable buttons only when conversation exists and WS is connected
   const isConversationReady = !!conversation && webSocketStatus === "CONNECTED";
 
+  const handleLaunchRepository = (
+    repository: GitRepository,
+    branch: Branch,
+  ) => {
+    if (!conversationId) return;
+
+    const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
+    send({
+      action: "message",
+      args: {
+        content: clonePrompt,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    updateRepository({
+      conversationId,
+      repository: repository.full_name,
+      branch: branch.name,
+      gitProvider: repository.git_provider,
+    });
+  };
+
   return (
     <div className="flex flex-row items-center">
       <div className="flex flex-row gap-2.5 items-center overflow-x-auto flex-wrap md:flex-nowrap relative scrollbar-hide">
-        <GitControlBarTooltipWrapper
-          tooltipMessage={t(I18nKey.COMMON$GIT_TOOLS_DISABLED_CONTENT)}
-          testId="git-control-bar-repo-button-tooltip"
-          shouldShowTooltip={!hasRepository}
-        >
+        {hasRepository ? (
           <GitControlBarRepoButton
             selectedRepository={selectedRepository}
             gitProvider={gitProvider}
           />
-        </GitControlBarTooltipWrapper>
-
-        <button
-          type="button"
-          onClick={() => setIsChangeRepoModalOpen(true)}
-          className="px-2 py-1 text-xs text-[#A3A3A3] hover:text-white border border-[#525252] rounded-full hover:border-[#454545] transition-colors"
-          title={
-            hasRepository
-              ? t(I18nKey.CONVERSATION$CHANGE_REPOSITORY)
-              : t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)
-          }
-        >
-          {hasRepository
-            ? t(I18nKey.CONVERSATION$CHANGE_REPOSITORY)
-            : t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsOpenRepoModalOpen(true)}
+            className="px-2 py-1 text-xs text-[#A3A3A3] hover:text-white border border-[#525252] rounded-full hover:border-[#454545] transition-colors"
+            title={t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
+          >
+            {t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
+          </button>
+        )}
 
         <GitControlBarTooltipWrapper
           tooltipMessage={t(I18nKey.COMMON$GIT_TOOLS_DISABLED_CONTENT)}
@@ -122,12 +142,11 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
         ) : null}
       </div>
 
-      <ChangeRepositoryModal
-        isOpen={isChangeRepoModalOpen}
-        onClose={() => setIsChangeRepoModalOpen(false)}
-        currentRepository={selectedRepository}
-        currentBranch={selectedBranch}
-        currentProvider={gitProvider}
+      <OpenRepositoryModal
+        isOpen={isOpenRepoModalOpen}
+        onClose={() => setIsOpenRepoModalOpen(false)}
+        onLaunch={handleLaunchRepository}
+        defaultProvider={gitProvider}
       />
     </div>
   );
