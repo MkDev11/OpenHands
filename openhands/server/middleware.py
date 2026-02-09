@@ -7,6 +7,7 @@
 # Tag: Legacy-V0
 # This module belongs to the old V0 web server. The V1 application server lives under openhands/app_server/.
 import asyncio
+import logging
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -52,7 +53,11 @@ class LocalhostCORSMiddleware(CORSMiddleware):
                 return True
 
             # Allow any origin when no specific origins are configured (development mode)
-            # This enables external access to agent servers without explicit CORS configuration
+            # WARNING: This disables CORS protection. Use explicit CORS origins in production.
+            logging.getLogger(__name__).warning(
+                f'No CORS origins configured, allowing origin: {origin}. '
+                'Set PERMITTED_CORS_ORIGINS for production environments.'
+            )
             return True
 
         # For missing origin or other origins, use the parent class's logic
