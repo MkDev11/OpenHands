@@ -52,21 +52,32 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   ) => {
     if (!conversationId) return;
 
-    const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
-    send({
-      action: "message",
-      args: {
-        content: clonePrompt,
-        timestamp: new Date().toISOString(),
+    // Note: We update repository metadata first, then send clone command.
+    // The clone command is sent to the agent via WebSocket (fire-and-forget).
+    // If cloning fails, the agent will report the error in the chat,
+    // and the user can retry or change the repository.
+    // This is a trade-off: immediate UI feedback vs. strict atomicity.
+    updateRepository(
+      {
+        conversationId,
+        repository: repository.full_name,
+        branch: branch.name,
+        gitProvider: repository.git_provider,
       },
-    });
-
-    updateRepository({
-      conversationId,
-      repository: repository.full_name,
-      branch: branch.name,
-      gitProvider: repository.git_provider,
-    });
+      {
+        onSuccess: () => {
+          // Send clone command to agent after metadata is updated
+          const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
+          send({
+            action: "message",
+            args: {
+              content: clonePrompt,
+              timestamp: new Date().toISOString(),
+            },
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -82,9 +93,9 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
             type="button"
             onClick={() => setIsOpenRepoModalOpen(true)}
             className="px-2 py-1 text-xs text-[#A3A3A3] hover:text-white border border-[#525252] rounded-full hover:border-[#454545] transition-colors"
-            title={t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
+            title={t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
           >
-            {t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
+            {t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
           </button>
         )}
 

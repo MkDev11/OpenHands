@@ -47,12 +47,12 @@ export function OpenRepositoryModal({
   }, []);
 
   const handleLaunch = () => {
-    if (selectedRepository && selectedBranch) {
-      onLaunch(selectedRepository, selectedBranch);
-      setSelectedRepository(null);
-      setSelectedBranch(null);
-      onClose();
-    }
+    if (!selectedRepository || !selectedBranch) return;
+
+    onLaunch(selectedRepository, selectedBranch);
+    setSelectedRepository(null);
+    setSelectedBranch(null);
+    onClose();
   };
 
   const handleClose = () => {
