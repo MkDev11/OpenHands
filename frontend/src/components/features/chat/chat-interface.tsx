@@ -243,9 +243,13 @@ export function ChatInterface() {
         navigate(`/conversations/${result.new_conversation_id}`);
         return;
       } catch (error) {
-        displayErrorToast(
-          `Failed to clear conversation: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        let clearError = "Unknown error";
+        if (error instanceof Error) {
+          clearError = error.message;
+        } else if (typeof error === "string") {
+          clearError = error;
+        }
+        displayErrorToast(`Failed to clear conversation: ${clearError}`);
         return;
       }
     }

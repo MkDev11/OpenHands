@@ -650,8 +650,15 @@ async def clear_conversation(
         # so the frontend can redirect to it.
         async_iter = app_conversation_service.start_app_conversation(start_request)
         start_task: AppConversationStartTask | None = None
+        task_count = 0
         async for task in async_iter:
             start_task = task
+            task_count += 1
+
+        if task_count > 1:
+            logger.warning(
+                f'Expected 1 task from start_app_conversation, got {task_count}'
+            )
 
         if start_task is None:
             raise HTTPException(
