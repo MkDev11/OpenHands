@@ -590,24 +590,32 @@ async def get_conversation_skills(
 
 @router.post('/{conversation_id}/clear')
 async def clear_conversation(
+    request: Request,
     conversation_id: UUID,
     user_context: UserContext = user_context_dependency,
+    db_session: AsyncSession = db_session_dependency,
+    httpx_client: httpx.AsyncClient = httpx_client_dependency,
     app_conversation_service: AppConversationService = (
         app_conversation_service_dependency
     ),
 ) -> dict:
-    """Clear all events from a conversation.
+    """Clear conversation by creating a new one in the same runtime.
 
-    This endpoint deletes all events associated with a conversation,
-    effectively resetting the conversation history while preserving
-    the conversation metadata.
+    Instead of deleting events (which would violate append-only invariants),
+    this creates a new conversation that inherits the parent's sandbox and
+    configuration. The old conversation is preserved and linked via
+    parent_conversation_id.
 
     Args:
+        request: The FastAPI request object
         conversation_id: The UUID of the conversation to clear
         user_context: The user context for authorization
+        db_session: Database session for the new conversation
+        httpx_client: HTTP client for agent server communication
+        app_conversation_service: Service for conversation operations
 
     Returns:
-        dict with the number of events deleted
+        dict with new_conversation_id and parent_conversation_id
 
     Raises:
         HTTPException: 404 if conversation not found, 403 if unauthorized,
@@ -627,22 +635,32 @@ async def clear_conversation(
             detail='You do not have permission to clear this conversation',
         )
 
+    set_db_session_keep_open(request.state, True)
+    set_httpx_client_keep_open(request.state, True)
+
     try:
-        deleted_count = await app_conversation_service.clear_conversation_events(
-            conversation_id
+        start_request = AppConversationStartRequest(
+            parent_conversation_id=conversation_id,
         )
+
+        async_iter = app_conversation_service.start_app_conversation(start_request)
+        start_task = await anext(async_iter)
+        asyncio.create_task(_consume_remaining(async_iter, db_session, httpx_client))
+
+        return {
+            'message': 'Conversation history cleared. Runtime state preserved.',
+            'new_conversation_id': str(start_task.id),
+            'parent_conversation_id': str(conversation_id),
+            'status': start_task.status.value,
+        }
     except Exception as e:
         logger.error(f'Error clearing conversation {conversation_id}: {e}')
+        await db_session.close()
+        await httpx_client.aclose()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to clear conversation: {str(e)}',
         )
-
-    return {
-        'message': 'Conversation history cleared. Runtime state preserved.',
-        'deleted_events': deleted_count,
-        'conversation_id': str(conversation_id),
-    }
 
 
 @router.get('/{conversation_id}/download')
