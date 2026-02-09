@@ -1,6 +1,6 @@
 import React from "react";
 import { usePostHog } from "posthog-js/react";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { convertImageToBase64 } from "#/utils/convert-image-to-base-64";
 import { TrajectoryActions } from "../trajectory/trajectory-actions";
@@ -24,10 +24,7 @@ import { USE_PLANNING_AGENT } from "#/utils/feature-flags";
 import { ScrollToBottomButton } from "#/components/shared/buttons/scroll-to-bottom-button";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
 import { ChatMessagesSkeleton } from "./chat-messages-skeleton";
-import {
-  displayErrorToast,
-  displaySuccessToast,
-} from "#/utils/custom-toast-handlers";
+import { displayErrorToast } from "#/utils/custom-toast-handlers";
 import { useErrorMessageStore } from "#/stores/error-message-store";
 import { useOptimisticUserMessageStore } from "#/stores/optimistic-user-message-store";
 import { useEventStore } from "#/stores/use-event-store";
@@ -57,7 +54,8 @@ import { useTaskPolling } from "#/hooks/query/use-task-polling";
 import { useConversationWebSocket } from "#/contexts/conversation-websocket-context";
 import ChatStatusIndicator from "./chat-status-indicator";
 import { getStatusColor, getStatusText } from "#/utils/utils";
-import V1ConversationService from "#/api/conversation-service/v1-conversation-service.api";
+import { useClearConversation } from "#/hooks/mutation/use-clear-conversation";
+import { I18nKey } from "#/i18n/declaration";
 
 function getEntryPoint(
   hasRepository: boolean | null,
@@ -92,6 +90,7 @@ export function ChatInterface() {
     setHitBottom,
   } = useScrollToBottom(scrollRef);
   const { data: config } = useConfig();
+  const { mutate: clearConversation } = useClearConversation();
 
   const { curAgentState } = useAgentState();
   const { handleBuildPlanClick } = useHandleBuildPlanClick();
@@ -138,7 +137,6 @@ export function ChatInterface() {
   const [feedbackModalIsOpen, setFeedbackModalIsOpen] = React.useState(false);
   const { selectedRepository, replayJson } = useInitialQueryStore();
   const params = useParams();
-  const navigate = useNavigate();
   const { mutateAsync: uploadFiles } = useUnifiedUploadFiles();
 
   const optimisticUserMessage = getOptimisticUserMessage();
@@ -221,37 +219,15 @@ export function ChatInterface() {
     // Handle /clear command for V1 conversations
     if (content.trim() === "/clear") {
       if (!isV1Conversation) {
-        displayErrorToast(
-          "The /clear command is only available for V1 conversations",
-        );
+        displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_V1_ONLY));
         return;
       }
       if (!params.conversationId) {
-        displayErrorToast("No conversation ID found");
+        displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_NO_ID));
         return;
       }
-      try {
-        const result = await V1ConversationService.clearConversation(
-          params.conversationId,
-        );
-        if (!result.new_conversation_id) {
-          displayErrorToast("Server did not return a new conversation ID");
-          return;
-        }
-        displaySuccessToast(result.message);
-        // Navigate to the new conversation using React Router
-        navigate(`/conversations/${result.new_conversation_id}`);
-        return;
-      } catch (error) {
-        let clearError = "Unknown error";
-        if (error instanceof Error) {
-          clearError = error.message;
-        } else if (typeof error === "string") {
-          clearError = error;
-        }
-        displayErrorToast(`Failed to clear conversation: ${clearError}`);
-        return;
-      }
+      clearConversation({ conversationId: params.conversationId });
+      return;
     }
 
     // Create mutable copies of the arrays
