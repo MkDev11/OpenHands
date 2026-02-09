@@ -381,6 +381,9 @@ class V1ConversationService {
       parent_conversation_id: string;
       status: string;
     }>(`/api/v1/app-conversations/${conversationId}/clear`);
+    if (!data.new_conversation_id || !data.parent_conversation_id) {
+      throw new Error("Invalid response from server: missing required fields");
+    }
     return data;
   }
 
