@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
 import { ModalBody } from "#/components/shared/modals/modal-body";
-import { ModalButton } from "#/components/shared/buttons/modal-button";
+import { BrandButton } from "#/components/features/settings/brand-button";
 import {
   BaseModalTitle,
   BaseModalDescription,
@@ -95,18 +95,27 @@ export function OpenRepositoryModal({
           className="w-full"
         />
 
-        <div className="flex flex-col gap-2 w-full">
-          <ModalButton
+        <div
+          className="flex flex-col gap-2 w-full"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <BrandButton
+            type="button"
+            variant="primary"
             onClick={handleLaunch}
-            text={t(I18nKey.BUTTON$LAUNCH)}
-            className="bg-[#4465DB] text-white"
-            disabled={!canLaunch}
-          />
-          <ModalButton
+            className="w-full"
+            isDisabled={!canLaunch}
+          >
+            {t(I18nKey.BUTTON$LAUNCH)}
+          </BrandButton>
+          <BrandButton
+            type="button"
+            variant="secondary"
             onClick={handleClose}
-            text={t(I18nKey.BUTTON$CANCEL)}
-            className="bg-transparent text-white border border-[#525252]"
-          />
+            className="w-full"
+          >
+            {t(I18nKey.BUTTON$CANCEL)}
+          </BrandButton>
         </div>
       </ModalBody>
     </ModalBackdrop>
