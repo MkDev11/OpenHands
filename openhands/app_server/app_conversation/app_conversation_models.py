@@ -223,6 +223,15 @@ class AppConversationStartTaskPage(OpenHandsModel):
     next_page_id: str | None = None
 
 
+class ClearConversationResponse(BaseModel):
+    """Response model for the clear conversation endpoint."""
+
+    message: str
+    new_conversation_id: str
+    parent_conversation_id: str
+    status: str
+
+
 class SkillResponse(BaseModel):
     """Response model for skills endpoint."""
 

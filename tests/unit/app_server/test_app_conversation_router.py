@@ -289,12 +289,11 @@ class TestClearConversation:
         )
 
         assert (
-            result['message']
-            == 'Conversation history cleared. Runtime state preserved.'
+            result.message == 'Conversation history cleared. Runtime state preserved.'
         )
-        assert result['new_conversation_id'] == new_task_id.hex
-        assert result['parent_conversation_id'] == conversation_id.hex
-        assert result['status'] == 'WORKING'
+        assert result.new_conversation_id == new_task_id.hex
+        assert result.parent_conversation_id == conversation_id.hex
+        assert result.status == 'WORKING'
 
     async def test_returns_404_for_nonexistent_conversation(self):
         """Test that clearing a nonexistent conversation raises 404."""
