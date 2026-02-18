@@ -40,6 +40,7 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTask,
     AppConversationStartTaskPage,
     AppConversationStartTaskSortOrder,
+    AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
     SkillResponse,
 )
@@ -618,21 +619,15 @@ async def clear_conversation(
         dict with new_conversation_id and parent_conversation_id
 
     Raises:
-        HTTPException: 404 if conversation not found, 403 if unauthorized,
-                      500 on internal error
+        HTTPException: 404 if conversation not found, 500 on internal error.
+            Ownership is enforced by get_app_conversation.
     """
+    # Ownership is already enforced by get_app_conversation
     conversation = await app_conversation_service.get_app_conversation(conversation_id)
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Conversation {conversation_id} not found',
-        )
-
-    current_user_id = await user_context.get_user_id()
-    if conversation.created_by_user_id != current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='You do not have permission to clear this conversation',
         )
 
     set_db_session_keep_open(request.state, True)
@@ -643,27 +638,29 @@ async def clear_conversation(
             parent_conversation_id=conversation_id,
         )
 
-        # Consume the full async iterator to ensure the conversation is fully
-        # created and saved to the database before returning to the client.
-        # Unlike the regular start endpoint (which returns immediately and
-        # processes in the background), /clear needs the conversation to exist
-        # so the frontend can redirect to it.
+        # start_app_conversation returns an async iterator that yields
+        # status updates (WORKING → WAITING_FOR_SANDBOX → ... → READY/ERROR).
+        # We consume it until we reach a terminal status.
         async_iter = app_conversation_service.start_app_conversation(start_request)
         start_task: AppConversationStartTask | None = None
-        task_count = 0
         async for task in async_iter:
             start_task = task
-            task_count += 1
-
-        if task_count > 1:
-            logger.warning(
-                f'Expected 1 task from start_app_conversation, got {task_count}'
-            )
+            if task.status in (
+                AppConversationStartTaskStatus.READY,
+                AppConversationStartTaskStatus.ERROR,
+            ):
+                break
 
         if start_task is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail='Failed to create new conversation: no task returned',
+            )
+
+        if start_task.status == AppConversationStartTaskStatus.ERROR:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f'Failed to create new conversation: {start_task.detail}',
             )
 
         new_id = start_task.app_conversation_id

@@ -8,7 +8,6 @@
 # This module belongs to the old V0 web server. The V1 application server lives under openhands/app_server/.
 import asyncio
 import logging
-import os
 from collections import defaultdict
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -28,13 +27,10 @@ class LocalhostCORSMiddleware(CORSMiddleware):
     """
 
     def __init__(self, app: ASGIApp) -> None:
-        allow_origins_str = os.getenv('PERMITTED_CORS_ORIGINS')
-        if allow_origins_str:
-            allow_origins = tuple(
-                origin.strip() for origin in allow_origins_str.split(',')
-            )
-        else:
-            allow_origins = ()
+        from openhands.app_server.config import get_global_config
+
+        config = get_global_config()
+        allow_origins = tuple(config.permitted_cors_origins)
         super().__init__(
             app,
             allow_origins=allow_origins,
@@ -56,7 +52,7 @@ class LocalhostCORSMiddleware(CORSMiddleware):
             # WARNING: This disables CORS protection. Use explicit CORS origins in production.
             logging.getLogger(__name__).warning(
                 f'No CORS origins configured, allowing origin: {origin}. '
-                'Set PERMITTED_CORS_ORIGINS for production environments.'
+                'Set OH_PERMITTED_CORS_ORIGINS for production environments.'
             )
             return True
 
