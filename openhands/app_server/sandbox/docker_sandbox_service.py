@@ -594,15 +594,6 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
             'before it is considered an error'
         ),
     )
-    permitted_cors_origins: list[str] = Field(
-        default_factory=list,
-        description=(
-            'Additional permitted CORS origins to be passed to the Agent Server. '
-            'Useful for remote access from external IPs or custom domains. '
-            'Configure via OH_SANDBOX_PERMITTED_CORS_ORIGINS_0, _1, etc. '
-            'or OH_SANDBOX_PERMITTED_CORS_ORIGINS=["https://example.com"]'
-        ),
-    )
     use_host_network: bool = Field(
         default=os.getenv('SANDBOX_USE_HOST_NETWORK', '').lower()
         in (
@@ -629,7 +620,7 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
             get_sandbox_spec_service,
         )
 
-        # Get web_url from global config for CORS support
+        # Get web_url and permitted_cors_origins from global config
         config = get_global_config()
         web_url = config.web_url
 
@@ -648,7 +639,7 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
                 httpx_client=httpx_client,
                 max_num_sandboxes=self.max_num_sandboxes,
                 web_url=web_url,
-                permitted_cors_origins=self.permitted_cors_origins,
+                permitted_cors_origins=config.permitted_cors_origins,
                 extra_hosts=self.extra_hosts,
                 startup_grace_seconds=self.startup_grace_seconds,
                 use_host_network=self.use_host_network,

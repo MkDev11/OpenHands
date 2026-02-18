@@ -75,8 +75,20 @@ class AppConversationService(ABC):
         id, starting a conversation, attaching a callback, and then running the
         conversation.
 
-        Yields an instance of AppConversationStartTask as updates occur, which can be used to determine
-        the progress of the task.
+        This method returns an async iterator that yields the same
+        AppConversationStartTask repeatedly as status updates occur. Callers
+        should iterate until the task reaches a terminal status::
+
+            async for task in service.start_app_conversation(request):
+                if task.status in (
+                    AppConversationStartTaskStatus.READY,
+                    AppConversationStartTaskStatus.ERROR,
+                ):
+                    break
+
+        Status progression: WORKING → WAITING_FOR_SANDBOX → PREPARING_REPOSITORY
+        → RUNNING_SETUP_SCRIPT → SETTING_UP_GIT_HOOKS → SETTING_UP_SKILLS
+        → STARTING_CONVERSATION → READY (or ERROR at any point).
         """
         # This is an abstract method - concrete implementations should provide real values
         from openhands.app_server.app_conversation.app_conversation_models import (
