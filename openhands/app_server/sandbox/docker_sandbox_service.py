@@ -80,6 +80,7 @@ class DockerSandboxService(SandboxService):
     httpx_client: httpx.AsyncClient
     max_num_sandboxes: int
     web_url: str | None = None
+    permitted_cors_origins: list[str] = field(default_factory=list)
     extra_hosts: dict[str, str] = field(default_factory=dict)
     docker_client: docker.DockerClient = field(default_factory=get_docker_client)
     startup_grace_seconds: int = STARTUP_GRACE_SECONDS
@@ -373,10 +374,7 @@ class DockerSandboxService(SandboxService):
         cors_origins: list[str] = []
         if self.web_url:
             cors_origins.append(self.web_url)
-        # Also include any explicitly permitted CORS origins (e.g. external IP)
-        permitted = os.environ.get('PERMITTED_CORS_ORIGINS', '')
-        if permitted:
-            cors_origins.extend(o.strip() for o in permitted.split(',') if o.strip())
+        cors_origins.extend(self.permitted_cors_origins)
         # Deduplicate while preserving order
         seen: set[str] = set()
         for origin in cors_origins:
@@ -596,6 +594,15 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
             'before it is considered an error'
         ),
     )
+    permitted_cors_origins: list[str] = Field(
+        default_factory=list,
+        description=(
+            'Additional permitted CORS origins to be passed to the Agent Server. '
+            'Useful for remote access from external IPs or custom domains. '
+            'Configure via OH_SANDBOX_PERMITTED_CORS_ORIGINS_0, _1, etc. '
+            'or OH_SANDBOX_PERMITTED_CORS_ORIGINS=["https://example.com"]'
+        ),
+    )
     use_host_network: bool = Field(
         default=os.getenv('SANDBOX_USE_HOST_NETWORK', '').lower()
         in (
@@ -641,6 +648,7 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
                 httpx_client=httpx_client,
                 max_num_sandboxes=self.max_num_sandboxes,
                 web_url=web_url,
+                permitted_cors_origins=self.permitted_cors_origins,
                 extra_hosts=self.extra_hosts,
                 startup_grace_seconds=self.startup_grace_seconds,
                 use_host_network=self.use_host_network,
