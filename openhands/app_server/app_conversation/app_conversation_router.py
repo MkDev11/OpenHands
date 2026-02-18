@@ -43,6 +43,7 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTaskSortOrder,
     AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
+    ClearConversationResponse,
     SkillResponse,
 )
 from openhands.app_server.app_conversation.app_conversation_service import (
@@ -604,7 +605,7 @@ async def clear_conversation(
     app_conversation_service: AppConversationService = (
         app_conversation_service_dependency
     ),
-) -> dict:
+) -> ClearConversationResponse:
     """Clear conversation by creating a new one in the same runtime.
 
     Instead of deleting events (which would violate append-only invariants),
@@ -621,7 +622,7 @@ async def clear_conversation(
         app_conversation_service: Service for conversation operations
 
     Returns:
-        dict with new_conversation_id and parent_conversation_id
+        ClearConversationResponse with new_conversation_id and parent_conversation_id
 
     Raises:
         HTTPException: 404 if conversation not found, 500 on internal error.
@@ -684,12 +685,12 @@ async def clear_conversation(
             else str(conversation_id).replace('-', '')
         )
 
-        return {
-            'message': 'Conversation history cleared. Runtime state preserved.',
-            'new_conversation_id': new_conversation_id,
-            'parent_conversation_id': parent_id,
-            'status': start_task.status.value,
-        }
+        return ClearConversationResponse(
+            message='Conversation history cleared. Runtime state preserved.',
+            new_conversation_id=new_conversation_id,
+            parent_conversation_id=parent_id,
+            status=start_task.status.value,
+        )
     except HTTPException:
         raise
     except Exception as e:
