@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,8 +16,6 @@ from openhands.app_server.app_conversation.app_conversation_models import (
 from openhands.app_server.event.event_service import EventService
 from openhands.app_server.event_callback.event_callback_models import EventKind
 from openhands.sdk import Event
-
-_logger = logging.getLogger(__name__)
 
 
 @dataclass
