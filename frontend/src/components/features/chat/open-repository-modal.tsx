@@ -67,33 +67,38 @@ export function OpenRepositoryModal({
 
   return (
     <ModalBackdrop onClose={handleClose}>
-      <ModalBody width="medium" className="items-start border border-tertiary">
-        <div className="flex flex-col gap-2 w-full">
+      <ModalBody
+        width="small"
+        className="items-start border border-tertiary !gap-4"
+      >
+        <div className="flex flex-col gap-1 w-full">
           <BaseModalTitle title={t(I18nKey.CONVERSATION$OPEN_REPOSITORY)} />
           <BaseModalDescription>
             {t(I18nKey.CONVERSATION$SELECT_OR_INSERT_LINK)}
           </BaseModalDescription>
         </div>
 
-        <GitRepoDropdown
-          provider={selectedRepository?.git_provider || defaultProvider}
-          value={selectedRepository?.id || null}
-          repositoryName={selectedRepository?.full_name || null}
-          onChange={handleRepositoryChange}
-          placeholder="Search repositories..."
-          className="w-full"
-        />
+        <div className="flex flex-col gap-[10px] w-full">
+          <GitRepoDropdown
+            provider={selectedRepository?.git_provider || defaultProvider}
+            value={selectedRepository?.id || null}
+            repositoryName={selectedRepository?.full_name || null}
+            onChange={handleRepositoryChange}
+            placeholder="Search repositories..."
+            className="w-full"
+          />
 
-        <GitBranchDropdown
-          repository={selectedRepository?.full_name || null}
-          provider={selectedRepository?.git_provider || defaultProvider}
-          selectedBranch={selectedBranch}
-          onBranchSelect={handleBranchSelect}
-          defaultBranch={selectedRepository?.main_branch || null}
-          placeholder="Select branch..."
-          disabled={!selectedRepository}
-          className="w-full"
-        />
+          <GitBranchDropdown
+            repository={selectedRepository?.full_name || null}
+            provider={selectedRepository?.git_provider || defaultProvider}
+            selectedBranch={selectedBranch}
+            onBranchSelect={handleBranchSelect}
+            defaultBranch={selectedRepository?.main_branch || null}
+            placeholder="Select branch..."
+            disabled={!selectedRepository}
+            className="w-full"
+          />
+        </div>
 
         <div
           className="flex flex-col gap-2 w-full"

@@ -101,10 +101,19 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
           <button
             type="button"
             onClick={() => setIsOpenRepoModalOpen(true)}
-            className="px-2 py-1 text-xs text-[#A3A3A3] hover:text-white border border-[#525252] rounded-full hover:border-[#454545] transition-colors"
-            title={t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
+            disabled={!isConversationReady}
+            className={`px-2 py-1 text-xs border rounded-full transition-colors ${
+              isConversationReady
+                ? "text-[#A3A3A3] hover:text-white border-[#525252] hover:border-[#454545]"
+                : "text-[#6B6B6B] border-[#3D3D3D] cursor-not-allowed"
+            }`}
+            title={
+              isConversationReady
+                ? t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)
+                : t(I18nKey.CHAT_INTERFACE$CONNECTING)
+            }
           >
-            {t(I18nKey.CONVERSATION$ATTACH_REPOSITORY)}
+            {t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
           </button>
         )}
 
