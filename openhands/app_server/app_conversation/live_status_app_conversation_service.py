@@ -1284,9 +1284,15 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         )
 
     def _validate_repository_update(
-        self, request: AppConversationUpdateRequest
+        self,
+        request: AppConversationUpdateRequest,
+        existing_branch: str | None = None,
     ) -> None:
         """Validate repository-related fields in the update request.
+
+        Args:
+            request: The update request containing fields to validate
+            existing_branch: The conversation's current branch (if any)
 
         Raises:
             ValueError: If validation fails
@@ -1306,11 +1312,28 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                     raise ValueError(f"Invalid characters in repository name: '{repo}'")
 
                 # If setting a repository, branch should also be provided
-                # (either in this request or already exists)
-                if 'selected_branch' not in request.model_fields_set:
+                # (either in this request or already exists in conversation)
+                if (
+                    'selected_branch' not in request.model_fields_set
+                    and existing_branch is None
+                ):
                     _logger.warning(
-                        f'Repository {repo} set without branch in the same request'
+                        f'Repository {repo} set without branch in the same request '
+                        'and no existing branch in conversation'
                     )
+            else:
+                # Repository is being removed (set to null)
+                # Enforce consistency: branch and provider must also be cleared
+                if 'selected_branch' in request.model_fields_set:
+                    if request.selected_branch is not None:
+                        raise ValueError(
+                            'When removing repository, branch must also be cleared'
+                        )
+                if 'git_provider' in request.model_fields_set:
+                    if request.git_provider is not None:
+                        raise ValueError(
+                            'When removing repository, git_provider must also be cleared'
+                        )
 
         # Validate branch if provided
         if 'selected_branch' in request.model_fields_set:
@@ -1334,14 +1357,15 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         Raises:
             ValueError: If repository/branch validation fails
         """
-        # Validate repository-related fields before updating
-        self._validate_repository_update(request)
-
         info = await self.app_conversation_info_service.get_app_conversation_info(
             conversation_id
         )
         if info is None:
             return None
+
+        # Validate repository-related fields before updating
+        # Pass existing branch to avoid false warnings when only updating repository
+        self._validate_repository_update(request, existing_branch=info.selected_branch)
 
         # Only update fields that were explicitly provided in the request
         # This uses Pydantic's model_fields_set to detect which fields were set,

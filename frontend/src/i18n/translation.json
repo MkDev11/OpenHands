@@ -16015,6 +16015,22 @@
     "de": "Fehler beim Aktualisieren des Repositorys",
     "uk": "Не вдалося оновити репозиторій"
   },
+  "CONVERSATION$CLONE_COMMAND_FAILED_DISCONNECTED": {
+    "en": "Repository updated but clone command could not be sent. Please reconnect and manually clone.",
+    "ja": "リポジトリは更新されましたが、クローンコマンドを送信できませんでした。再接続して手動でクローンしてください。",
+    "zh-CN": "仓库已更新，但无法发送克隆命令。请重新连接并手动克隆。",
+    "zh-TW": "儲存庫已更新，但無法傳送複製命令。請重新連線並手動複製。",
+    "ko-KR": "저장소가 업데이트되었지만 복제 명령을 보낼 수 없습니다. 다시 연결하고 수동으로 복제하세요.",
+    "no": "Repository oppdatert, men klonekommando kunne ikke sendes. Koble til på nytt og klon manuelt.",
+    "it": "Repository aggiornato ma il comando di clone non può essere inviato. Riconnettiti e clona manualmente.",
+    "pt": "Repositório atualizado, mas o comando de clone não pôde ser enviado. Reconecte e clone manualmente.",
+    "es": "Repositorio actualizado pero no se pudo enviar el comando de clonación. Reconéctese y clone manualmente.",
+    "ar": "تم تحديث المستودع ولكن تعذر إرسال أمر الاستنساخ. يرجى إعادة الاتصال والاستنساخ يدويًا.",
+    "fr": "Dépôt mis à jour mais la commande de clonage n'a pas pu être envoyée. Reconnectez-vous et clonez manuellement.",
+    "tr": "Depo güncellendi ancak klonlama komutu gönderilemedi. Lütfen yeniden bağlanın ve manuel olarak klonlayın.",
+    "de": "Repository aktualisiert, aber Klon-Befehl konnte nicht gesendet werden. Bitte erneut verbinden und manuell klonen.",
+    "uk": "Репозиторій оновлено, але команду клонування не вдалося надіслати. Підключіться знову та клонуйте вручну."
+  },
   "CONVERSATION$CHANGE_REPOSITORY": {
     "en": "Change Repository",
     "ja": "リポジトリを変更",

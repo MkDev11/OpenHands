@@ -16,6 +16,7 @@ import { Branch, GitRepository } from "#/types/git";
 import { I18nKey } from "#/i18n/declaration";
 import { GitControlBarTooltipWrapper } from "./git-control-bar-tooltip-wrapper";
 import { OpenRepositoryModal } from "./open-repository-modal";
+import { displayErrorToast } from "#/utils/custom-toast-handlers";
 
 interface GitControlBarProps {
   onSuggestionsClick: (value: string) => void;
@@ -66,6 +67,14 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
       },
       {
         onSuccess: () => {
+          // Check WebSocket status before sending clone command
+          if (webSocketStatus !== "CONNECTED") {
+            displayErrorToast(
+              t(I18nKey.CONVERSATION$CLONE_COMMAND_FAILED_DISCONNECTED),
+            );
+            return;
+          }
+
           // Send clone command to agent after metadata is updated
           const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
           send({
