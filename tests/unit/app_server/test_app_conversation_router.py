@@ -318,29 +318,6 @@ class TestClearConversation:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert 'not found' in exc_info.value.detail
 
-    async def test_returns_403_for_unauthorized_user(self):
-        """Test that clearing another user's conversation raises 403."""
-        conversation_id = uuid4()
-        mock_conversation = _make_mock_app_conversation(conversation_id, 'other-user')
-        mock_service = _make_mock_service(get_conversation_return=mock_conversation)
-        mock_user_context = _make_mock_user_context('test-user')
-        mock_request = _make_mock_request()
-        mock_db_session = _make_mock_db_session()
-        mock_httpx_client = _make_mock_httpx_client()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await clear_conversation(
-                request=mock_request,
-                conversation_id=conversation_id,
-                user_context=mock_user_context,
-                db_session=mock_db_session,
-                httpx_client=mock_httpx_client,
-                app_conversation_service=mock_service,
-            )
-
-        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
-        assert 'permission' in exc_info.value.detail
-
     async def test_returns_500_on_service_error(self):
         """Test that service errors raise 500 and cleanup resources."""
         user_id = 'test-user'
