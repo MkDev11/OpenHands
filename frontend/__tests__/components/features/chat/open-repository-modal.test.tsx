@@ -10,6 +10,44 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+// Mock useUserProviders - default to single provider (no dropdown shown)
+const mockProviders = vi.hoisted(() => ({
+  current: ["github"] as string[],
+}));
+
+vi.mock("#/hooks/use-user-providers", () => ({
+  useUserProviders: () => ({
+    providers: mockProviders.current,
+    isLoadingSettings: false,
+  }),
+}));
+
+// Mock GitProviderDropdown
+vi.mock(
+  "#/components/features/home/git-provider-dropdown/git-provider-dropdown",
+  () => ({
+    GitProviderDropdown: ({
+      providers,
+      onChange,
+    }: {
+      providers: string[];
+      onChange: (provider: string | null) => void;
+    }) => (
+      <div data-testid="git-provider-dropdown">
+        {providers.map((p: string) => (
+          <button
+            key={p}
+            data-testid={`provider-${p}`}
+            onClick={() => onChange(p)}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    ),
+  }),
+);
+
 // Mock GitRepoDropdown
 vi.mock(
   "#/components/features/home/git-repo-dropdown/git-repo-dropdown",
@@ -69,6 +107,7 @@ describe("OpenRepositoryModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockProviders.current = ["github"];
   });
 
   it("should not render when isOpen is false", () => {
@@ -268,5 +307,69 @@ describe("OpenRepositoryModal", () => {
       .getByText("CONVERSATION$OPEN_REPOSITORY")
       .closest(".bg-base-secondary");
     expect(modalBody).toHaveClass("!gap-4");
+  });
+
+  describe("provider switching", () => {
+    it("should not show provider dropdown when only one provider exists", () => {
+      mockProviders.current = ["github"];
+
+      render(
+        <OpenRepositoryModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onLaunch={mockOnLaunch}
+        />,
+      );
+
+      expect(
+        screen.queryByTestId("git-provider-dropdown"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should show provider dropdown when multiple providers exist", () => {
+      mockProviders.current = ["github", "gitlab"];
+
+      render(
+        <OpenRepositoryModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onLaunch={mockOnLaunch}
+        />,
+      );
+
+      expect(
+        screen.getByTestId("git-provider-dropdown"),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("provider-github")).toBeInTheDocument();
+      expect(screen.getByTestId("provider-gitlab")).toBeInTheDocument();
+    });
+
+    it("should reset repository and branch when provider changes", async () => {
+      mockProviders.current = ["github", "gitlab"];
+      const user = userEvent.setup();
+
+      render(
+        <OpenRepositoryModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onLaunch={mockOnLaunch}
+        />,
+      );
+
+      // Select repo and branch
+      await user.click(screen.getByTestId("git-repo-dropdown"));
+      await user.click(screen.getByTestId("git-branch-dropdown"));
+
+      // Launch should be enabled
+      let launchButton = screen.getByText("BUTTON$LAUNCH").closest("button");
+      expect(launchButton).not.toBeDisabled();
+
+      // Switch provider — should reset selections
+      await user.click(screen.getByTestId("provider-gitlab"));
+
+      // Launch should be disabled (repo and branch reset)
+      launchButton = screen.getByText("BUTTON$LAUNCH").closest("button");
+      expect(launchButton).toBeDisabled();
+    });
   });
 });
