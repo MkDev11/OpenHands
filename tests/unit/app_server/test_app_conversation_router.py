@@ -1,6 +1,6 @@
 """Unit tests for the app_conversation_router endpoints.
 
-This module tests the batch_get_app_conversations and clear_conversation endpoints,
+This module tests the batch_get_app_conversations and fork_conversation endpoints,
 focusing on UUID string parsing, validation, and error handling.
 """
 
@@ -15,7 +15,7 @@ from openhands.app_server.app_conversation.app_conversation_models import (
 )
 from openhands.app_server.app_conversation.app_conversation_router import (
     batch_get_app_conversations,
-    clear_conversation,
+    fork_conversation,
 )
 from openhands.app_server.sandbox.sandbox_models import SandboxStatus
 
@@ -252,14 +252,14 @@ def _make_mock_start_task(task_id=None, status_value='WORKING'):
 
 
 @pytest.mark.asyncio
-class TestClearConversation:
-    """Test suite for clear_conversation endpoint (Option 4 implementation)."""
+class TestForkConversation:
+    """Test suite for fork_conversation endpoint."""
 
     async def test_creates_new_conversation_in_same_runtime(self):
-        """Test that clearing creates a new conversation with parent link.
+        """Test that forking creates a new conversation with parent link.
 
         Arrange: Create mock service with existing conversation
-        Act: Call clear_conversation
+        Act: Call fork_conversation
         Assert: Returns new_conversation_id and parent_conversation_id
         """
         user_id = 'test-user'
@@ -279,7 +279,7 @@ class TestClearConversation:
         mock_db_session = _make_mock_db_session()
         mock_httpx_client = _make_mock_httpx_client()
 
-        result = await clear_conversation(
+        result = await fork_conversation(
             request=mock_request,
             conversation_id=conversation_id,
             user_context=mock_user_context,
@@ -288,15 +288,13 @@ class TestClearConversation:
             app_conversation_service=mock_service,
         )
 
-        assert (
-            result.message == 'Conversation history cleared. Runtime state preserved.'
-        )
+        assert result.message == 'Conversation forked. Runtime state preserved.'
         assert result.new_conversation_id == new_task_id.hex
         assert result.parent_conversation_id == conversation_id.hex
         assert result.status == 'WORKING'
 
     async def test_returns_404_for_nonexistent_conversation(self):
-        """Test that clearing a nonexistent conversation raises 404."""
+        """Test that forking a nonexistent conversation raises 404."""
         conversation_id = uuid4()
         mock_service = _make_mock_service(get_conversation_return=None)
         mock_user_context = _make_mock_user_context()
@@ -305,7 +303,7 @@ class TestClearConversation:
         mock_httpx_client = _make_mock_httpx_client()
 
         with pytest.raises(HTTPException) as exc_info:
-            await clear_conversation(
+            await fork_conversation(
                 request=mock_request,
                 conversation_id=conversation_id,
                 user_context=mock_user_context,
@@ -335,7 +333,7 @@ class TestClearConversation:
         mock_httpx_client = _make_mock_httpx_client()
 
         with pytest.raises(HTTPException) as exc_info:
-            await clear_conversation(
+            await fork_conversation(
                 request=mock_request,
                 conversation_id=conversation_id,
                 user_context=mock_user_context,
@@ -345,7 +343,7 @@ class TestClearConversation:
             )
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert 'Failed to clear conversation' in exc_info.value.detail
+        assert 'Failed to fork conversation' in exc_info.value.detail
         mock_db_session.close.assert_called_once()
         mock_httpx_client.aclose.assert_called_once()
 
@@ -367,7 +365,7 @@ class TestClearConversation:
         mock_httpx_client = _make_mock_httpx_client()
 
         with pytest.raises(HTTPException) as exc_info:
-            await clear_conversation(
+            await fork_conversation(
                 request=mock_request,
                 conversation_id=conversation_id,
                 user_context=mock_user_context,
@@ -402,7 +400,7 @@ class TestClearConversation:
         mock_db_session = _make_mock_db_session()
         mock_httpx_client = _make_mock_httpx_client()
 
-        await clear_conversation(
+        await fork_conversation(
             request=mock_request,
             conversation_id=conversation_id,
             user_context=mock_user_context,
