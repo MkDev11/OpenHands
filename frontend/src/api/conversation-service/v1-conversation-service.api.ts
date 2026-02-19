@@ -366,13 +366,13 @@ class V1ConversationService {
   }
 
   /**
-   * Clear a V1 conversation by creating a new one in the same runtime
-   * The old conversation is preserved and linked via parent_conversation_id
+   * Fork a V1 conversation by creating a new one in the same runtime
+   * The original conversation is preserved and linked via parent_conversation_id
    *
-   * @param conversationId The conversation ID to clear
+   * @param conversationId The conversation ID to fork
    * @returns Object with new_conversation_id and parent_conversation_id
    */
-  static async clearConversation(conversationId: string): Promise<{
+  static async forkConversation(conversationId: string): Promise<{
     message: string;
     new_conversation_id: string;
     parent_conversation_id: string;
@@ -383,7 +383,7 @@ class V1ConversationService {
       new_conversation_id: string;
       parent_conversation_id: string;
       status: string;
-    }>(`/api/v1/app-conversations/${conversationId}/clear`);
+    }>(`/api/v1/app-conversations/${conversationId}/fork`);
     if (!data.new_conversation_id || !data.parent_conversation_id) {
       throw new Error("Invalid response from server: missing required fields");
     }

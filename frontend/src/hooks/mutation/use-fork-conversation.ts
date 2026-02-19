@@ -8,13 +8,13 @@ import {
   displaySuccessToast,
 } from "#/utils/custom-toast-handlers";
 
-export const useClearConversation = () => {
+export const useForkConversation = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (variables: { conversationId: string }) =>
-      V1ConversationService.clearConversation(variables.conversationId),
+      V1ConversationService.forkConversation(variables.conversationId),
     onSuccess: (data) => {
       if (!data.new_conversation_id) {
         displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_NO_NEW_ID));
@@ -24,14 +24,14 @@ export const useClearConversation = () => {
       navigate(`/conversations/${data.new_conversation_id}`);
     },
     onError: (error) => {
-      let clearError = t(I18nKey.CONVERSATION$CLEAR_UNKNOWN_ERROR);
+      let forkError = t(I18nKey.CONVERSATION$CLEAR_UNKNOWN_ERROR);
       if (error instanceof Error) {
-        clearError = error.message;
+        forkError = error.message;
       } else if (typeof error === "string") {
-        clearError = error;
+        forkError = error;
       }
       displayErrorToast(
-        t(I18nKey.CONVERSATION$CLEAR_FAILED, { error: clearError }),
+        t(I18nKey.CONVERSATION$CLEAR_FAILED, { error: forkError }),
       );
     },
   });

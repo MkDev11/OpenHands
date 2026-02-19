@@ -6,12 +6,12 @@ vi.mock("#/api/open-hands-axios", () => ({
   openHands: { post: mockPost },
 }));
 
-describe("V1ConversationService.clearConversation", () => {
+describe("V1ConversationService.forkConversation", () => {
   it("calls the correct endpoint with the conversation ID", async () => {
     const conversationId = "abc123";
     mockPost.mockResolvedValue({
       data: {
-        message: "Conversation history cleared. Runtime state preserved.",
+        message: "Conversation forked. Runtime state preserved.",
         new_conversation_id: "def456",
         parent_conversation_id: "abc123",
         status: "running",
@@ -19,10 +19,10 @@ describe("V1ConversationService.clearConversation", () => {
     });
 
     const result =
-      await V1ConversationService.clearConversation(conversationId);
+      await V1ConversationService.forkConversation(conversationId);
 
     expect(mockPost).toHaveBeenCalledWith(
-      `/api/v1/app-conversations/${conversationId}/clear`,
+      `/api/v1/app-conversations/${conversationId}/fork`,
     );
     expect(result.new_conversation_id).toBe("def456");
     expect(result.parent_conversation_id).toBe("abc123");
@@ -31,7 +31,7 @@ describe("V1ConversationService.clearConversation", () => {
   it("throws when response is missing new_conversation_id", async () => {
     mockPost.mockResolvedValue({
       data: {
-        message: "Cleared",
+        message: "Forked",
         new_conversation_id: "",
         parent_conversation_id: "abc123",
         status: "running",
@@ -39,14 +39,14 @@ describe("V1ConversationService.clearConversation", () => {
     });
 
     await expect(
-      V1ConversationService.clearConversation("abc123"),
+      V1ConversationService.forkConversation("abc123"),
     ).rejects.toThrow("Invalid response from server: missing required fields");
   });
 
   it("throws when response is missing parent_conversation_id", async () => {
     mockPost.mockResolvedValue({
       data: {
-        message: "Cleared",
+        message: "Forked",
         new_conversation_id: "def456",
         parent_conversation_id: "",
         status: "running",
@@ -54,7 +54,7 @@ describe("V1ConversationService.clearConversation", () => {
     });
 
     await expect(
-      V1ConversationService.clearConversation("abc123"),
+      V1ConversationService.forkConversation("abc123"),
     ).rejects.toThrow("Invalid response from server: missing required fields");
   });
 });

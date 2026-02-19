@@ -42,7 +42,7 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTaskSortOrder,
     AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
-    ClearConversationResponse,
+    ForkConversationResponse,
     SkillResponse,
 )
 from openhands.app_server.app_conversation.app_conversation_service import (
@@ -590,8 +590,8 @@ async def get_conversation_skills(
         )
 
 
-@router.post('/{conversation_id}/clear')
-async def clear_conversation(
+@router.post('/{conversation_id}/fork')
+async def fork_conversation(
     request: Request,
     conversation_id: UUID,
     user_context: UserContext = user_context_dependency,
@@ -600,24 +600,23 @@ async def clear_conversation(
     app_conversation_service: AppConversationService = (
         app_conversation_service_dependency
     ),
-) -> ClearConversationResponse:
-    """Clear conversation by creating a new one in the same runtime.
+) -> ForkConversationResponse:
+    """Fork a conversation by creating a new one in the same runtime.
 
-    Instead of deleting events (which would violate append-only invariants),
-    this creates a new conversation that inherits the parent's sandbox and
-    configuration. The old conversation is preserved and linked via
-    parent_conversation_id.
+    Instead of mutating the existing conversation, this creates a new one
+    that inherits the parent's sandbox and configuration. The original
+    conversation is preserved and linked via parent_conversation_id.
 
     Args:
         request: The FastAPI request object
-        conversation_id: The UUID of the conversation to clear
+        conversation_id: The UUID of the conversation to fork
         user_context: The user context for authorization
         db_session: Database session for the new conversation
         httpx_client: HTTP client for agent server communication
         app_conversation_service: Service for conversation operations
 
     Returns:
-        ClearConversationResponse with new_conversation_id and parent_conversation_id
+        ForkConversationResponse with new_conversation_id and parent_conversation_id
 
     Raises:
         HTTPException: 404 if conversation not found, 500 on internal error.
@@ -680,8 +679,8 @@ async def clear_conversation(
             else str(conversation_id).replace('-', '')
         )
 
-        return ClearConversationResponse(
-            message='Conversation history cleared. Runtime state preserved.',
+        return ForkConversationResponse(
+            message='Conversation forked. Runtime state preserved.',
             new_conversation_id=new_conversation_id,
             parent_conversation_id=parent_id,
             status=start_task.status.value,
@@ -689,10 +688,10 @@ async def clear_conversation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f'Error clearing conversation {conversation_id}: {e}')
+        logger.error(f'Error forking conversation {conversation_id}: {e}')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f'Failed to clear conversation: {str(e)}',
+            detail=f'Failed to fork conversation: {str(e)}',
         )
     finally:
         await db_session.close()
