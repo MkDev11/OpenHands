@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import { GitControlBarRepoButton } from "./git-control-bar-repo-button";
@@ -92,30 +92,12 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   return (
     <div className="flex flex-row items-center">
       <div className="flex flex-row gap-2.5 items-center overflow-x-auto flex-wrap md:flex-nowrap relative scrollbar-hide">
-        {hasRepository ? (
-          <GitControlBarRepoButton
-            selectedRepository={selectedRepository}
-            gitProvider={gitProvider}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsOpenRepoModalOpen(true)}
-            disabled={!isConversationReady}
-            className={`px-2 py-1 text-xs border rounded-full transition-colors ${
-              isConversationReady
-                ? "text-[#A3A3A3] hover:text-white border-[#525252] hover:border-[#454545]"
-                : "text-[#6B6B6B] border-[#3D3D3D] cursor-not-allowed"
-            }`}
-            title={
-              isConversationReady
-                ? t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)
-                : t(I18nKey.CHAT_INTERFACE$CONNECTING)
-            }
-          >
-            {t(I18nKey.CONVERSATION$NO_REPO_CONNECTED)}
-          </button>
-        )}
+        <GitControlBarRepoButton
+          selectedRepository={selectedRepository}
+          gitProvider={gitProvider}
+          onClick={() => setIsOpenRepoModalOpen(true)}
+          disabled={!isConversationReady}
+        />
 
         <GitControlBarTooltipWrapper
           tooltipMessage={t(I18nKey.COMMON$GIT_TOOLS_DISABLED_CONTENT)}
