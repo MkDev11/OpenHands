@@ -3,10 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ModalBackdrop } from "#/components/shared/modals/modal-backdrop";
 import { ModalBody } from "#/components/shared/modals/modal-body";
 import { BrandButton } from "#/components/features/settings/brand-button";
-import {
-  BaseModalTitle,
-  BaseModalDescription,
-} from "#/components/shared/modals/confirmation-modals/base-modal";
+import { BaseModalTitle } from "#/components/shared/modals/confirmation-modals/base-modal";
 import { I18nKey } from "#/i18n/declaration";
 import { Provider } from "#/types/settings";
 import { Branch, GitRepository } from "#/types/git";
@@ -14,6 +11,7 @@ import { GitRepoDropdown } from "#/components/features/home/git-repo-dropdown/gi
 import { GitBranchDropdown } from "#/components/features/home/git-branch-dropdown/git-branch-dropdown";
 import { GitProviderDropdown } from "#/components/features/home/git-provider-dropdown/git-provider-dropdown";
 import { useUserProviders } from "#/hooks/use-user-providers";
+import RepoForkedIcon from "#/icons/repo-forked.svg?react";
 
 interface OpenRepositoryModalProps {
   isOpen: boolean;
@@ -101,14 +99,16 @@ export function OpenRepositoryModal({
         width="small"
         className="items-start border border-tertiary !gap-4"
       >
-        <div className="flex flex-col gap-1 w-full">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex items-center gap-[10px]">
+            <RepoForkedIcon width={24} height={24} />
+            <BaseModalTitle title={t(I18nKey.CONVERSATION$OPEN_REPOSITORY)} />
+          </div>
+
           <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-1">
-              <BaseModalTitle title={t(I18nKey.CONVERSATION$OPEN_REPOSITORY)} />
-              <BaseModalDescription>
-                {t(I18nKey.CONVERSATION$SELECT_OR_INSERT_LINK)}
-              </BaseModalDescription>
-            </div>
+            <span className="text-sm text-white font-normal leading-[22px]">
+              {t(I18nKey.CONVERSATION$SELECT_OR_INSERT_LINK)}
+            </span>
             {providers.length > 1 && (
               <GitProviderDropdown
                 providers={providers}

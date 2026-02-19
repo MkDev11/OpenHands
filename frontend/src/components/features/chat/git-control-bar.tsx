@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import { GitControlBarRepoButton } from "./git-control-bar-repo-button";
@@ -17,6 +17,7 @@ import { I18nKey } from "#/i18n/declaration";
 import { GitControlBarTooltipWrapper } from "./git-control-bar-tooltip-wrapper";
 import { OpenRepositoryModal } from "./open-repository-modal";
 import { displayErrorToast } from "#/utils/custom-toast-handlers";
+import { useHomeStore } from "#/stores/home-store";
 
 interface GitControlBarProps {
   onSuggestionsClick: (value: string) => void;
@@ -26,10 +27,15 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   const { t } = useTranslation();
   const { conversationId } = useParams<{ conversationId: string }>();
   const [isOpenRepoModalOpen, setIsOpenRepoModalOpen] = useState(false);
+  const { addRecentRepository } = useHomeStore();
 
   const { data: conversation } = useActiveConversation();
   const { repositoryInfo } = useTaskPolling();
   const webSocketStatus = useUnifiedWebSocketStatus();
+  const webSocketStatusRef = useRef(webSocketStatus);
+  useEffect(() => {
+    webSocketStatusRef.current = webSocketStatus;
+  }, [webSocketStatus]);
   const { send } = useSendMessage();
   const { mutate: updateRepository } = useUpdateConversationRepository();
 
@@ -53,6 +59,9 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   ) => {
     if (!conversationId) return;
 
+    // Persist to recent repositories list (matches home page behavior)
+    addRecentRepository(repository);
+
     // Note: We update repository metadata first, then send clone command.
     // The clone command is sent to the agent via WebSocket (fire-and-forget).
     // If cloning fails, the agent will report the error in the chat,
@@ -67,8 +76,8 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
       },
       {
         onSuccess: () => {
-          // Check WebSocket status before sending clone command
-          if (webSocketStatus !== "CONNECTED") {
+          // Use ref to read the latest WebSocket status (avoids stale closure)
+          if (webSocketStatusRef.current !== "CONNECTED") {
             displayErrorToast(
               t(I18nKey.CONVERSATION$CLONE_COMMAND_FAILED_DISCONNECTED),
             );

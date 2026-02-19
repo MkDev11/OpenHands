@@ -101,6 +101,11 @@ vi.mock(
   }),
 );
 
+// Mock RepoForkedIcon
+vi.mock("#/icons/repo-forked.svg?react", () => ({
+  default: () => <div data-testid="repo-forked-icon" />,
+}));
+
 describe("OpenRepositoryModal", () => {
   const mockOnClose = vi.fn();
   const mockOnLaunch = vi.fn();
@@ -139,6 +144,7 @@ describe("OpenRepositoryModal", () => {
     expect(
       screen.getByText("CONVERSATION$SELECT_OR_INSERT_LINK"),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("repo-forked-icon")).toBeInTheDocument();
   });
 
   it("should render Launch and Cancel buttons", () => {
