@@ -37,6 +37,10 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
     webSocketStatusRef.current = webSocketStatus;
   }, [webSocketStatus]);
   const { send } = useSendMessage();
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
   const { mutate: updateRepository } = useUpdateConversationRepository();
 
   // Priority: conversation data > task data
@@ -85,8 +89,10 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
           }
 
           // Send clone command to agent after metadata is updated
+          // Use ref to always call the latest send function (avoids stale closure
+          // where V1 sendMessage holds a reference to a now-closed WebSocket)
           const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
-          send({
+          sendRef.current({
             action: "message",
             args: {
               content: clonePrompt,
