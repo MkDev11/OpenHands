@@ -18,6 +18,7 @@ import { GitControlBarTooltipWrapper } from "./git-control-bar-tooltip-wrapper";
 import { OpenRepositoryModal } from "./open-repository-modal";
 import { displayErrorToast } from "#/utils/custom-toast-handlers";
 import { useHomeStore } from "#/stores/home-store";
+import { useOptimisticUserMessageStore } from "#/stores/optimistic-user-message-store";
 
 interface GitControlBarProps {
   onSuggestionsClick: (value: string) => void;
@@ -28,6 +29,7 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
   const { conversationId } = useParams<{ conversationId: string }>();
   const [isOpenRepoModalOpen, setIsOpenRepoModalOpen] = useState(false);
   const { addRecentRepository } = useHomeStore();
+  const { setOptimisticUserMessage } = useOptimisticUserMessageStore();
 
   const { data: conversation } = useActiveConversation();
   const { repositoryInfo } = useTaskPolling();
@@ -92,6 +94,7 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
           // Use ref to always call the latest send function (avoids stale closure
           // where V1 sendMessage holds a reference to a now-closed WebSocket)
           const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
+          setOptimisticUserMessage(clonePrompt);
           sendRef.current({
             action: "message",
             args: {
