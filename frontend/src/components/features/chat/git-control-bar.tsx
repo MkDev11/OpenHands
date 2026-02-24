@@ -93,7 +93,11 @@ export function GitControlBar({ onSuggestionsClick }: GitControlBarProps) {
           // Send clone command to agent after metadata is updated
           // Use ref to always call the latest send function (avoids stale closure
           // where V1 sendMessage holds a reference to a now-closed WebSocket)
-          const clonePrompt = `Clone ${repository.full_name} and checkout branch ${branch.name}.`;
+          // Include git provider in prompt so agent clones from correct source
+          const providerName =
+            repository.git_provider.charAt(0).toUpperCase() +
+            repository.git_provider.slice(1);
+          const clonePrompt = `Clone ${repository.full_name} from ${providerName} and checkout branch ${branch.name}.`;
           setOptimisticUserMessage(clonePrompt);
           sendRef.current({
             action: "message",
