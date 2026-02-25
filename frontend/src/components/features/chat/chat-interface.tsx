@@ -39,7 +39,7 @@ import { useTaskPolling } from "#/hooks/query/use-task-polling";
 import { useConversationWebSocket } from "#/contexts/conversation-websocket-context";
 import ChatStatusIndicator from "./chat-status-indicator";
 import { getStatusColor, getStatusText } from "#/utils/utils";
-import { useForkConversation } from "#/hooks/mutation/use-fork-conversation";
+import { useClearConversation } from "#/hooks/mutation/use-clear-conversation";
 import { I18nKey } from "#/i18n/declaration";
 
 function getEntryPoint(
@@ -83,7 +83,7 @@ export function ChatInterface() {
     setHitBottom,
   } = useScrollToBottom(scrollRef);
   const { data: config } = useConfig();
-  const { mutate: forkConversation } = useForkConversation();
+  const { mutate: clearConversation } = useClearConversation();
 
   const { curAgentState } = useAgentState();
   const { handleBuildPlanClick } = useHandleBuildPlanClick();
@@ -166,7 +166,7 @@ export function ChatInterface() {
         displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_NO_ID));
         return;
       }
-      forkConversation({ conversationId: params.conversationId });
+      clearConversation();
       return;
     }
 

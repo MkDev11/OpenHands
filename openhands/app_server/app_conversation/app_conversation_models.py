@@ -223,15 +223,6 @@ class AppConversationStartTaskPage(OpenHandsModel):
     next_page_id: str | None = None
 
 
-class ForkConversationResponse(BaseModel):
-    """Response model for the fork conversation endpoint."""
-
-    message: str
-    new_conversation_id: str
-    parent_conversation_id: str
-    status: str
-
-
 class SkillResponse(BaseModel):
     """Response model for skills endpoint."""
 

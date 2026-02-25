@@ -42,7 +42,6 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTaskSortOrder,
     AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
-    ForkConversationResponse,
     SkillResponse,
 )
 from openhands.app_server.app_conversation.app_conversation_service import (
@@ -588,114 +587,6 @@ async def get_conversation_skills(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={'error': f'Error getting skills: {str(e)}'},
         )
-
-
-@router.post('/{conversation_id}/fork')
-async def fork_conversation(
-    request: Request,
-    conversation_id: UUID,
-    user_context: UserContext = user_context_dependency,
-    db_session: AsyncSession = db_session_dependency,
-    httpx_client: httpx.AsyncClient = httpx_client_dependency,
-    app_conversation_service: AppConversationService = (
-        app_conversation_service_dependency
-    ),
-) -> ForkConversationResponse:
-    """Fork a conversation by creating a new one in the same runtime.
-
-    Instead of mutating the existing conversation, this creates a new one
-    that inherits the parent's sandbox and configuration. The original
-    conversation is preserved and linked via parent_conversation_id.
-
-    Args:
-        request: The FastAPI request object
-        conversation_id: The UUID of the conversation to fork
-        user_context: The user context for authorization
-        db_session: Database session for the new conversation
-        httpx_client: HTTP client for agent server communication
-        app_conversation_service: Service for conversation operations
-
-    Returns:
-        ForkConversationResponse with new_conversation_id and parent_conversation_id
-
-    Raises:
-        HTTPException: 404 if conversation not found, 500 on internal error.
-            Ownership is enforced by get_app_conversation.
-    """
-    # Ownership is already enforced by get_app_conversation
-    conversation = await app_conversation_service.get_app_conversation(conversation_id)
-    if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Conversation {conversation_id} not found',
-        )
-
-    set_db_session_keep_open(request.state, True)
-    set_httpx_client_keep_open(request.state, True)
-
-    try:
-        start_request = AppConversationStartRequest(
-            parent_conversation_id=conversation_id,
-        )
-
-        # start_app_conversation returns an async iterator that yields
-        # status updates (WORKING → WAITING_FOR_SANDBOX → ... → READY/ERROR).
-        # We consume it until we reach a terminal status.
-        async_iter = app_conversation_service.start_app_conversation(start_request)
-        start_task: AppConversationStartTask | None = None
-        async for task in async_iter:
-            start_task = task
-            if task.status in (
-                AppConversationStartTaskStatus.READY,
-                AppConversationStartTaskStatus.ERROR,
-            ):
-                break
-
-        if start_task is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail='Failed to create new conversation: no task returned',
-            )
-
-        if start_task.status == AppConversationStartTaskStatus.ERROR:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f'Failed to create new conversation: {start_task.detail}',
-            )
-
-        new_id = start_task.app_conversation_id
-        if new_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail='New conversation was not created successfully',
-            )
-        # Use hex format (no dashes) to match the convention used in URLs
-        new_conversation_id = (
-            new_id.hex if isinstance(new_id, UUID) else str(new_id).replace('-', '')
-        )
-        parent_id = (
-            conversation_id.hex
-            if isinstance(conversation_id, UUID)
-            else str(conversation_id).replace('-', '')
-        )
-
-        return ForkConversationResponse(
-            message='Conversation forked. Runtime state preserved.',
-            new_conversation_id=new_conversation_id,
-            parent_conversation_id=parent_id,
-            status=start_task.status.value,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f'Error forking conversation {conversation_id}: {e}')
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f'Failed to fork conversation: {str(e)}',
-        )
-    finally:
-        await db_session.close()
-        await httpx_client.aclose()
 
 
 @router.get('/{conversation_id}/download')
