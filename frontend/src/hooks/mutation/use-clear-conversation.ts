@@ -45,7 +45,10 @@ export const useClearConversation = () => {
         !["READY", "ERROR"].includes(task.status) &&
         attempts < maxAttempts
       ) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => {
+          setTimeout(resolve, 1000);
+        });
         task = await V1ConversationService.getStartTask(startTask.id);
         attempts += 1;
       }
