@@ -40,7 +40,6 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTask,
     AppConversationStartTaskPage,
     AppConversationStartTaskSortOrder,
-    AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
     SkillResponse,
 )
