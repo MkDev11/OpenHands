@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
@@ -10,6 +10,7 @@ import {
 import { useActiveConversation } from "#/hooks/query/use-active-conversation";
 
 export const useClearConversation = () => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { data: conversation } = useActiveConversation();
@@ -63,6 +64,13 @@ export const useClearConversation = () => {
     },
     onSuccess: (data) => {
       displaySuccessToast(t(I18nKey.CONVERSATION$CLEAR_SUCCESS));
+      // Invalidate conversation list caches so the sidebar refreshes
+      queryClient.invalidateQueries({
+        queryKey: ["user", "conversations"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["v1-batch-get-app-conversations"],
+      });
       navigate(`/conversations/${data.newConversationId}`);
     },
     onError: (error) => {
