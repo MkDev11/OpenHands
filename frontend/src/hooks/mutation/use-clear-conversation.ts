@@ -16,7 +16,7 @@ export const useClearConversation = () => {
 
   return useMutation({
     mutationFn: async () => {
-      if (!conversation?.id || !conversation.sandbox_id) {
+      if (!conversation?.conversation_id || !conversation.sandbox_id) {
         throw new Error("No active conversation or sandbox");
       }
 
@@ -30,7 +30,7 @@ export const useClearConversation = () => {
         undefined, // conversationInstructions
         undefined, // suggestedTask
         undefined, // trigger
-        conversation.id, // parent_conversation_id - inherits from current conversation
+        conversation.conversation_id, // parent_conversation_id - inherits from current conversation
         undefined, // agent_type
       );
 
@@ -39,15 +39,15 @@ export const useClearConversation = () => {
       const maxAttempts = 60; // 60 seconds timeout
       let attempts = 0;
 
+      /* eslint-disable no-await-in-loop */
       while (
         task &&
-        task.status !== "READY" &&
-        task.status !== "ERROR" &&
+        !["READY", "ERROR"].includes(task.status) &&
         attempts < maxAttempts
       ) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         task = await V1ConversationService.getStartTask(startTask.id);
-        attempts++;
+        attempts += 1;
       }
 
       if (!task || task.status !== "READY" || !task.app_conversation_id) {
