@@ -320,6 +320,39 @@ class V1ConversationService {
   }
 
   /**
+   * Update a V1 conversation's repository settings
+   * @param conversationId The conversation ID
+   * @param repository The repository to attach (e.g., "owner/repo") or null to remove
+   * @param branch The branch to use (optional)
+   * @param gitProvider The git provider (e.g., "github", "gitlab")
+   * @returns Updated conversation info
+   */
+  static async updateConversationRepository(
+    conversationId: string,
+    repository: string | null,
+    branch?: string | null,
+    gitProvider?: string | null,
+  ): Promise<V1AppConversation> {
+    const payload: Record<string, string | null | undefined> = {};
+
+    if (repository !== undefined) {
+      payload.selected_repository = repository;
+    }
+    if (branch !== undefined) {
+      payload.selected_branch = branch;
+    }
+    if (gitProvider !== undefined) {
+      payload.git_provider = gitProvider;
+    }
+
+    const { data } = await openHands.patch<V1AppConversation>(
+      `/api/v1/app-conversations/${conversationId}`,
+      payload,
+    );
+    return data;
+  }
+
+  /**
    * Read a file from a specific conversation's sandbox workspace
    * @param conversationId The conversation ID
    * @param filePath Path to the file to read within the sandbox workspace (defaults to /workspace/project/.agents_tmp/PLAN.md)
@@ -362,31 +395,6 @@ class V1ConversationService {
     const { data } = await openHands.get<GetSkillsResponse>(
       `/api/v1/app-conversations/${conversationId}/skills`,
     );
-    return data;
-  }
-
-  /**
-   * Fork a V1 conversation by creating a new one in the same runtime
-   * The original conversation is preserved and linked via parent_conversation_id
-   *
-   * @param conversationId The conversation ID to fork
-   * @returns Object with new_conversation_id and parent_conversation_id
-   */
-  static async forkConversation(conversationId: string): Promise<{
-    message: string;
-    new_conversation_id: string;
-    parent_conversation_id: string;
-    status: string;
-  }> {
-    const { data } = await openHands.post<{
-      message: string;
-      new_conversation_id: string;
-      parent_conversation_id: string;
-      status: string;
-    }>(`/api/v1/app-conversations/${conversationId}/fork`);
-    if (!data.new_conversation_id || !data.parent_conversation_id) {
-      throw new Error("Invalid response from server: missing required fields");
-    }
     return data;
   }
 

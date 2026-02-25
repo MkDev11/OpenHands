@@ -170,7 +170,15 @@ class AppConversationStartRequest(OpenHandsModel):
 
 
 class AppConversationUpdateRequest(BaseModel):
-    public: bool
+    """Request model for updating conversation metadata.
+
+    All fields are optional - only provided fields will be updated.
+    """
+
+    public: bool | None = None
+    selected_repository: str | None = None
+    selected_branch: str | None = None
+    git_provider: ProviderType | None = None
 
 
 class AppConversationStartTaskStatus(Enum):
@@ -221,15 +229,6 @@ class AppConversationStartTask(OpenHandsModel):
 class AppConversationStartTaskPage(OpenHandsModel):
     items: list[AppConversationStartTask]
     next_page_id: str | None = None
-
-
-class ForkConversationResponse(BaseModel):
-    """Response model for the fork conversation endpoint."""
-
-    message: str
-    new_conversation_id: str
-    parent_conversation_id: str
-    status: str
 
 
 class SkillResponse(BaseModel):
