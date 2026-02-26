@@ -66,26 +66,21 @@ export const useClearConversation = () => {
         oldConversationId: conversation.conversation_id,
       };
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       displaySuccessToast(t(I18nKey.CONVERSATION$CLEAR_SUCCESS));
       navigate(`/conversations/${data.newConversationId}`);
 
-      // Delete the old conversation so it disappears from the sidebar
-      try {
-        await ConversationService.deleteUserConversation(
-          data.oldConversationId,
-        );
-      } catch {
-        // Best-effort deletion; don't block the user if it fails
-      }
-
-      // Invalidate conversation list caches so the sidebar refreshes
-      queryClient.invalidateQueries({
-        queryKey: ["user", "conversations"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["v1-batch-get-app-conversations"],
-      });
+      // Delete the old conversation and refresh the sidebar in the background
+      ConversationService.deleteUserConversation(data.oldConversationId)
+        .catch(() => {}) // Best-effort deletion
+        .finally(() => {
+          queryClient.invalidateQueries({
+            queryKey: ["user", "conversations"],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["v1-batch-get-app-conversations"],
+          });
+        });
     },
     onError: (error) => {
       let clearError = t(I18nKey.CONVERSATION$CLEAR_UNKNOWN_ERROR);
