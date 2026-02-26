@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import ConversationService from "#/api/conversation-service/conversation-service.api";
 import V1ConversationService from "#/api/conversation-service/v1-conversation-service.api";
 import { useClearConversation } from "#/hooks/mutation/use-clear-conversation";
 
@@ -96,6 +97,9 @@ describe("useClearConversation", () => {
     const getStartTaskSpy = vi
       .spyOn(V1ConversationService, "getStartTask")
       .mockResolvedValue(readyTask as never);
+    vi.spyOn(ConversationService, "deleteUserConversation").mockResolvedValue(
+      undefined as never,
+    );
 
     const { result } = renderHook(() => useClearConversation(), { wrapper });
 
@@ -131,6 +135,9 @@ describe("useClearConversation", () => {
 
     vi.spyOn(V1ConversationService, "createConversation").mockResolvedValue(
       workingTask as never,
+    );
+    vi.spyOn(ConversationService, "deleteUserConversation").mockResolvedValue(
+      undefined as never,
     );
     const getStartTaskSpy = vi
       .spyOn(V1ConversationService, "getStartTask")
@@ -184,6 +191,9 @@ describe("useClearConversation", () => {
     vi.spyOn(V1ConversationService, "getStartTask").mockResolvedValue(
       readyTask as never,
     );
+    vi.spyOn(ConversationService, "deleteUserConversation").mockResolvedValue(
+      undefined as never,
+    );
 
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -198,6 +208,53 @@ describe("useClearConversation", () => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ["v1-batch-get-app-conversations"],
       });
+    });
+  });
+
+  it("deletes the old conversation on success", async () => {
+    const readyTask = makeStartTask();
+
+    vi.spyOn(V1ConversationService, "createConversation").mockResolvedValue(
+      readyTask as never,
+    );
+    vi.spyOn(V1ConversationService, "getStartTask").mockResolvedValue(
+      readyTask as never,
+    );
+    const deleteSpy = vi
+      .spyOn(ConversationService, "deleteUserConversation")
+      .mockResolvedValue(undefined as never);
+
+    const { result } = renderHook(() => useClearConversation(), { wrapper });
+
+    await result.current.mutateAsync();
+
+    await waitFor(() => {
+      expect(deleteSpy).toHaveBeenCalledWith("conv-123");
+    });
+  });
+
+  it("does not fail if deleting the old conversation throws", async () => {
+    const readyTask = makeStartTask();
+
+    vi.spyOn(V1ConversationService, "createConversation").mockResolvedValue(
+      readyTask as never,
+    );
+    vi.spyOn(V1ConversationService, "getStartTask").mockResolvedValue(
+      readyTask as never,
+    );
+    vi.spyOn(ConversationService, "deleteUserConversation").mockRejectedValue(
+      new Error("delete failed"),
+    );
+
+    const { result } = renderHook(() => useClearConversation(), { wrapper });
+
+    // Should not throw even though delete fails
+    await result.current.mutateAsync();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        "/conversations/new-conv-999",
+      );
     });
   });
 });

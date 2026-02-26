@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
+import ConversationService from "#/api/conversation-service/conversation-service.api";
 import V1ConversationService from "#/api/conversation-service/v1-conversation-service.api";
 import {
   displayErrorToast,
@@ -60,10 +61,24 @@ export const useClearConversation = () => {
         );
       }
 
-      return { newConversationId: task.app_conversation_id };
+      return {
+        newConversationId: task.app_conversation_id,
+        oldConversationId: conversation.conversation_id,
+      };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       displaySuccessToast(t(I18nKey.CONVERSATION$CLEAR_SUCCESS));
+      navigate(`/conversations/${data.newConversationId}`);
+
+      // Delete the old conversation so it disappears from the sidebar
+      try {
+        await ConversationService.deleteUserConversation(
+          data.oldConversationId,
+        );
+      } catch {
+        // Best-effort deletion; don't block the user if it fails
+      }
+
       // Invalidate conversation list caches so the sidebar refreshes
       queryClient.invalidateQueries({
         queryKey: ["user", "conversations"],
@@ -71,7 +86,6 @@ export const useClearConversation = () => {
       queryClient.invalidateQueries({
         queryKey: ["v1-batch-get-app-conversations"],
       });
-      navigate(`/conversations/${data.newConversationId}`);
     },
     onError: (error) => {
       let clearError = t(I18nKey.CONVERSATION$CLEAR_UNKNOWN_ERROR);
