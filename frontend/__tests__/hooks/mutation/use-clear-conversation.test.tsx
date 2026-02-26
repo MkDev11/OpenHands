@@ -18,9 +18,22 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const { mockToast } = vi.hoisted(() => {
+  const mockToast = Object.assign(vi.fn(), {
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  });
+  return { mockToast };
+});
+
+vi.mock("react-hot-toast", () => ({
+  default: mockToast,
+}));
+
 vi.mock("#/utils/custom-toast-handlers", () => ({
   displaySuccessToast: vi.fn(),
   displayErrorToast: vi.fn(),
+  TOAST_OPTIONS: { position: "top-right" },
 }));
 
 const mockConversation = {
@@ -230,6 +243,32 @@ describe("useClearConversation", () => {
 
     await waitFor(() => {
       expect(deleteSpy).toHaveBeenCalledWith("conv-123");
+    });
+  });
+
+  it("shows a loading toast immediately and dismisses it on success", async () => {
+    const readyTask = makeStartTask();
+
+    vi.spyOn(V1ConversationService, "createConversation").mockResolvedValue(
+      readyTask as never,
+    );
+    vi.spyOn(V1ConversationService, "getStartTask").mockResolvedValue(
+      readyTask as never,
+    );
+    vi.spyOn(ConversationService, "deleteUserConversation").mockResolvedValue(
+      undefined as never,
+    );
+
+    const { result } = renderHook(() => useClearConversation(), { wrapper });
+
+    await result.current.mutateAsync();
+
+    await waitFor(() => {
+      expect(mockToast.loading).toHaveBeenCalledWith(
+        "CONVERSATION$CLEARING",
+        expect.objectContaining({ id: "clear-conversation" }),
+      );
+      expect(mockToast.dismiss).toHaveBeenCalledWith("clear-conversation");
     });
   });
 

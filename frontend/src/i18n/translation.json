@@ -16286,5 +16286,8 @@
     "tr": "Konuşma temizlendi. Aynı korumalı alanda yeni konuşma başlatılıyor.",
     "de": "Konversation gelöscht. Starte neue Konversation in derselben Sandbox.",
     "uk": "Розмову очищено. Починаю нову розмову в тому самому захищеному середовищі."
+  },
+  "CONVERSATION$CLEARING": {
+    "en": "Clearing conversation..."
   }
 }
