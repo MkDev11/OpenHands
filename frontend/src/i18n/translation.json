@@ -16288,6 +16288,19 @@
     "uk": "Розмову очищено. Починаю нову розмову в тому самому захищеному середовищі."
   },
   "CONVERSATION$CLEARING": {
-    "en": "Clearing conversation..."
+    "en": "Clearing conversation...",
+    "ja": "会話をクリア中...",
+    "zh-CN": "正在清除对话...",
+    "zh-TW": "正在清除對話...",
+    "ko-KR": "대화를 지우는 중...",
+    "no": "Tømmer samtalen...",
+    "it": "Cancellazione conversazione...",
+    "pt": "Limpando conversa...",
+    "es": "Borrando conversación...",
+    "ar": "جارٍ مسح المحادثة...",
+    "fr": "Effacement de la conversation...",
+    "tr": "Konuşma temizleniyor...",
+    "de": "Konversation wird gelöscht...",
+    "uk": "Очищення розмови..."
   }
 }
