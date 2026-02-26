@@ -82,7 +82,8 @@ export function ChatInterface() {
     setHitBottom,
   } = useScrollToBottom(scrollRef);
   const { data: config } = useConfig();
-  const { mutate: clearConversation } = useClearConversation();
+  const { mutate: clearConversation, isPending: isClearingConversation } =
+    useClearConversation();
 
   const { curAgentState } = useAgentState();
   const { handleBuildPlanClick } = useHandleBuildPlanClick();
@@ -157,6 +158,9 @@ export function ChatInterface() {
       }
       if (!params.conversationId) {
         displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_NO_ID));
+        return;
+      }
+      if (isClearingConversation) {
         return;
       }
       clearConversation();
