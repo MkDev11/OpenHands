@@ -22,8 +22,14 @@ _logger = logging.getLogger(__name__)
 
 ASSISTANT_SOURCE = 'agent'
 FALLBACK_MESSAGE = (
-    'No response from the agent.\n\n[See the conversation]({conversation_url})'
+    'No response from the agent.\n\n<{conversation_url}|See the conversation>'
 )
+
+
+def _slack_conversation_link(conversation_id: UUID) -> str:
+    """Format conversation URL for Slack mrkdwn (<url|label>)."""
+    url = CONVERSATION_URL.format(conversation_id)
+    return f'<{url}|See the conversation>'
 
 
 class SlackV1CallbackProcessor(EventCallbackProcessor):
@@ -50,7 +56,7 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
 
         try:
             message = await self._get_final_assistant_message(conversation_id)
-            await self._post_summary_to_slack(message)
+            await self._post_message_to_slack(message)
 
             return EventCallbackResult(
                 status=EventCallbackResultStatus.SUCCESS,
@@ -64,10 +70,9 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
 
             # Only try to post error to Slack if we have basic requirements
             try:
-                await self._post_summary_to_slack(
+                await self._post_message_to_slack(
                     f'OpenHands encountered an error: **{str(e)}**.\n\n'
-                    f'[See the conversation]({CONVERSATION_URL.format(conversation_id)})'
-                    'for more information.'
+                    f'{_slack_conversation_link(conversation_id)} for more information.'
                 )
             except Exception as post_error:
                 _logger.warning(
@@ -94,8 +99,8 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
 
         return bot_access_token
 
-    async def _post_summary_to_slack(self, summary: str) -> None:
-        """Post a summary message to the configured Slack channel."""
+    async def _post_message_to_slack(self, message: str) -> None:
+        """Post a message to the configured Slack channel (threaded reply)."""
         bot_access_token = self._get_bot_access_token()
         if not bot_access_token:
             raise RuntimeError('Missing Slack bot access token')
@@ -108,10 +113,9 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
         client = WebClient(token=bot_access_token)
 
         try:
-            # Post the summary as a threaded reply
             response = client.chat_postMessage(
                 channel=channel_id,
-                text=summary,
+                text=message,
                 thread_ts=thread_ts,
                 unfurl_links=False,
                 unfurl_media=False,
@@ -119,11 +123,11 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
 
             if not response['ok']:
                 raise RuntimeError(
-                    f"Slack API error: {response.get('error', 'Unknown error')}"
+                    f'Slack API error: {response.get("error", "Unknown error")}'
                 )
 
             _logger.info(
-                '[Slack V1] Successfully posted summary to channel %s', channel_id
+                '[Slack V1] Successfully posted message to channel %s', channel_id
             )
 
         except Exception as e:
@@ -178,6 +182,11 @@ class SlackV1CallbackProcessor(EventCallbackProcessor):
                 continue
             if evt.source != ASSISTANT_SOURCE:
                 continue
+            llm_message = getattr(evt, 'llm_message', None)
+            if llm_message is not None:
+                role = getattr(llm_message, 'role', None)
+                if role is not None and role != 'assistant':
+                    continue
             text = self._extract_message_text(evt)
             if text:
                 return text
