@@ -160,6 +160,10 @@ export function ChatInterface() {
         displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_NO_ID));
         return;
       }
+      if (totalEvents === 0) {
+        displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_EMPTY));
+        return;
+      }
       if (isClearingConversation) {
         return;
       }

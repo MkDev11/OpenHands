@@ -16723,6 +16723,22 @@
     "de": "Der /clear-Befehl ist nur für V1-Konversationen verfügbar",
     "uk": "Команда /clear доступна лише для розмов V1"
   },
+  "CONVERSATION$CLEAR_EMPTY": {
+    "en": "Nothing to clear. This conversation has no messages yet.",
+    "ja": "クリアするものがありません。この会話にはまだメッセージがありません。",
+    "zh-CN": "没有可清除的内容。此对话尚无消息。",
+    "zh-TW": "沒有可清除的內容。此對話尚無訊息。",
+    "ko-KR": "지울 내용이 없습니다. 이 대화에는 아직 메시지가 없습니다.",
+    "no": "Ingenting å tømme. Denne samtalen har ingen meldinger ennå.",
+    "it": "Niente da cancellare. Questa conversazione non ha ancora messaggi.",
+    "pt": "Nada para limpar. Esta conversa ainda não tem mensagens.",
+    "es": "Nada que borrar. Esta conversación aún no tiene mensajes.",
+    "ar": "لا يوجد شيء لمسحه. لا تحتوي هذه المحادثة على رسائل بعد.",
+    "fr": "Rien à effacer. Cette conversation n'a pas encore de messages.",
+    "tr": "Temizlenecek bir şey yok. Bu konuşmada henüz mesaj yok.",
+    "de": "Nichts zu löschen. Diese Konversation hat noch keine Nachrichten.",
+    "uk": "Нічого очищувати. Ця розмова ще не має повідомлень."
+  },
   "CONVERSATION$CLEAR_NO_ID": {
     "en": "No conversation ID found",
     "ja": "会話IDが見つかりません",
