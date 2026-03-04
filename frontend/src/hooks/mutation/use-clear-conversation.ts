@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { I18nKey } from "#/i18n/declaration";
-import ConversationService from "#/api/conversation-service/conversation-service.api";
 import V1ConversationService from "#/api/conversation-service/v1-conversation-service.api";
 import {
   displayErrorToast,
@@ -79,17 +78,17 @@ export const useClearConversation = () => {
       displaySuccessToast(t(I18nKey.CONVERSATION$CLEAR_SUCCESS));
       navigate(`/conversations/${data.newConversationId}`);
 
-      // Delete the old conversation and refresh the sidebar in the background
-      ConversationService.deleteUserConversation(data.oldConversationId)
-        .catch(() => {}) // Best-effort deletion
-        .finally(() => {
-          queryClient.invalidateQueries({
-            queryKey: ["user", "conversations"],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["v1-batch-get-app-conversations"],
-          });
-        });
+      // Refresh the sidebar to show the new conversation.
+      // Note: We intentionally do NOT delete the old conversation here because
+      // the new conversation is linked as a sub-conversation of the old one and
+      // shares the same sandbox. Deleting the old conversation would cascade-delete
+      // the new conversation and destroy the shared sandbox.
+      queryClient.invalidateQueries({
+        queryKey: ["user", "conversations"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["v1-batch-get-app-conversations"],
+      });
     },
     onError: (error) => {
       toast.dismiss("clear-conversation");
