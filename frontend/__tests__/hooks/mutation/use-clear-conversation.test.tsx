@@ -78,7 +78,7 @@ function makeStartTask(overrides: Record<string, unknown> = {}) {
       title: null,
       trigger: null,
       pr_number: [],
-      parent_conversation_id: "conv-123",
+      parent_conversation_id: null,
       agent_type: "default",
     },
     created_at: new Date().toISOString(),
@@ -101,7 +101,7 @@ describe("useClearConversation", () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  it("calls createConversation with parent_conversation_id and navigates on success", async () => {
+  it("calls createConversation with sandbox_id and navigates on success", async () => {
     const readyTask = makeStartTask();
     const createSpy = vi
       .spyOn(V1ConversationService, "createConversation")
@@ -123,8 +123,9 @@ describe("useClearConversation", () => {
         undefined,
         undefined,
         undefined,
-        "conv-123",
         undefined,
+        undefined,
+        "sandbox-456",
       );
       expect(getStartTaskSpy).toHaveBeenCalledWith("task-789");
       expect(mockNavigate).toHaveBeenCalledWith(
@@ -214,12 +215,11 @@ describe("useClearConversation", () => {
     });
   });
 
-  it("does not delete the old conversation on success (preserves shared sandbox)", async () => {
+  it("creates a standalone conversation (not a sub-conversation) so it appears in the list", async () => {
     const readyTask = makeStartTask();
-
-    vi.spyOn(V1ConversationService, "createConversation").mockResolvedValue(
-      readyTask as never,
-    );
+    const createSpy = vi
+      .spyOn(V1ConversationService, "createConversation")
+      .mockResolvedValue(readyTask as never);
     vi.spyOn(V1ConversationService, "getStartTask").mockResolvedValue(
       readyTask as never,
     );
@@ -229,14 +229,21 @@ describe("useClearConversation", () => {
     await result.current.mutateAsync();
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(
-        "/conversations/new-conv-999",
+      // parent_conversation_id should be undefined so the new conversation
+      // is NOT a sub-conversation and will appear in the conversation list.
+      expect(createSpy).toHaveBeenCalledWith(
+        undefined, // selectedRepository (null from mock)
+        undefined, // git_provider (null from mock)
+        undefined, // initialUserMsg
+        undefined, // selected_branch (null from mock)
+        undefined, // conversationInstructions
+        undefined, // suggestedTask
+        undefined, // trigger
+        undefined, // parent_conversation_id is NOT set
+        undefined, // agent_type
+        "sandbox-456", // sandbox_id IS set to reuse the sandbox
       );
     });
-
-    // The old conversation should NOT be deleted because the new conversation
-    // is a sub-conversation that shares the same sandbox. Deleting the old
-    // conversation would cascade-delete the new one and destroy the sandbox.
   });
 
   it("shows a loading toast immediately and dismisses it on success", async () => {

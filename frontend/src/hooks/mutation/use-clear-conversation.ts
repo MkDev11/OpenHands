@@ -23,18 +23,21 @@ export const useClearConversation = () => {
         throw new Error("No active conversation or sandbox");
       }
 
-      // Start a new conversation using the existing sandbox
-      // This preserves the runtime state while starting fresh
+      // Start a new conversation reusing the existing sandbox directly.
+      // We pass sandbox_id instead of parent_conversation_id so that the
+      // new conversation is NOT marked as a sub-conversation and will
+      // appear in the conversation list.
       const startTask = await V1ConversationService.createConversation(
-        undefined, // selectedRepository
-        undefined, // git_provider
+        conversation.selected_repository ?? undefined, // selectedRepository
+        conversation.git_provider ?? undefined, // git_provider
         undefined, // initialUserMsg
-        undefined, // selected_branch
+        conversation.selected_branch ?? undefined, // selected_branch
         undefined, // conversationInstructions
         undefined, // suggestedTask
         undefined, // trigger
-        conversation.conversation_id, // parent_conversation_id - inherits from current conversation
+        undefined, // parent_conversation_id
         undefined, // agent_type
+        conversation.sandbox_id ?? undefined, // sandbox_id - reuse the same sandbox
       );
 
       // Poll for the task to complete and get the new conversation ID
@@ -79,10 +82,6 @@ export const useClearConversation = () => {
       navigate(`/conversations/${data.newConversationId}`);
 
       // Refresh the sidebar to show the new conversation.
-      // Note: We intentionally do NOT delete the old conversation here because
-      // the new conversation is linked as a sub-conversation of the old one and
-      // shares the same sandbox. Deleting the old conversation would cascade-delete
-      // the new conversation and destroy the shared sandbox.
       queryClient.invalidateQueries({
         queryKey: ["user", "conversations"],
       });
