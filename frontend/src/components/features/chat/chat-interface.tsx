@@ -357,7 +357,10 @@ export function ChatInterface() {
             />
           )}
 
-          <InteractiveChatBox onSubmit={handleSendMessage} />
+          <InteractiveChatBox
+            onSubmit={handleSendMessage}
+            disabled={isClearingConversation}
+          />
         </div>
 
         {config?.app_mode !== "saas" && !isV1Conversation && (

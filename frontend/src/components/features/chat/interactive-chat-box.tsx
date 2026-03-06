@@ -13,9 +13,13 @@ import { isTaskPolling } from "#/utils/utils";
 
 interface InteractiveChatBoxProps {
   onSubmit: (message: string, images: File[], files: File[]) => void;
+  disabled?: boolean;
 }
 
-export function InteractiveChatBox({ onSubmit }: InteractiveChatBoxProps) {
+export function InteractiveChatBox({
+  onSubmit,
+  disabled = false,
+}: InteractiveChatBoxProps) {
   const {
     images,
     files,
@@ -143,6 +147,7 @@ export function InteractiveChatBox({ onSubmit }: InteractiveChatBoxProps) {
   };
 
   const isDisabled =
+    disabled ||
     curAgentState === AgentState.LOADING ||
     curAgentState === AgentState.AWAITING_USER_CONFIRMATION ||
     isTaskPolling(subConversationTaskStatus);
