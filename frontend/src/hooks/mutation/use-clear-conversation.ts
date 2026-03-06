@@ -23,6 +23,13 @@ export const useClearConversation = () => {
         throw new Error("No active conversation or sandbox");
       }
 
+      // Fetch V1 conversation data to get llm_model (not available in legacy type)
+      const v1Conversations =
+        await V1ConversationService.batchGetAppConversations([
+          conversation.conversation_id,
+        ]);
+      const llmModel = v1Conversations?.[0]?.llm_model;
+
       // Start a new conversation reusing the existing sandbox directly.
       // We pass sandbox_id instead of parent_conversation_id so that the
       // new conversation is NOT marked as a sub-conversation and will
@@ -38,6 +45,7 @@ export const useClearConversation = () => {
         undefined, // parent_conversation_id
         undefined, // agent_type
         conversation.sandbox_id ?? undefined, // sandbox_id - reuse the same sandbox
+        llmModel ?? undefined, // llm_model - preserve the LLM model
       );
 
       // Poll for the task to complete and get the new conversation ID

@@ -95,6 +95,32 @@ describe("useClearConversation", () => {
     queryClient = new QueryClient({
       defaultOptions: { mutations: { retry: false } },
     });
+    // Mock batchGetAppConversations to return V1 data with llm_model
+    vi.spyOn(
+      V1ConversationService,
+      "batchGetAppConversations",
+    ).mockResolvedValue([
+      {
+        id: "conv-123",
+        title: "Test Conversation",
+        sandbox_id: "sandbox-456",
+        sandbox_status: "RUNNING",
+        execution_status: "IDLE",
+        conversation_url: null,
+        session_api_key: null,
+        selected_repository: null,
+        selected_branch: null,
+        git_provider: null,
+        trigger: null,
+        pr_number: [],
+        llm_model: "gpt-4o",
+        metrics: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sub_conversation_ids: [],
+        public: false,
+      } as never,
+    ]);
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -126,6 +152,7 @@ describe("useClearConversation", () => {
         undefined,
         undefined,
         "sandbox-456",
+        "gpt-4o",
       );
       expect(getStartTaskSpy).toHaveBeenCalledWith("task-789");
       expect(mockNavigate).toHaveBeenCalledWith(
@@ -242,6 +269,7 @@ describe("useClearConversation", () => {
         undefined, // parent_conversation_id is NOT set
         undefined, // agent_type
         "sandbox-456", // sandbox_id IS set to reuse the sandbox
+        "gpt-4o", // llm_model IS inherited from the original conversation
       );
     });
   });
