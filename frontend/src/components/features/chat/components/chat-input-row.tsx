@@ -41,6 +41,7 @@ export function ChatInputRow({
 
         <ChatInputField
           chatInputRef={chatInputRef}
+          disabled={disabled}
           onInput={onInput}
           onPaste={onPaste}
           onKeyDown={onKeyDown}
