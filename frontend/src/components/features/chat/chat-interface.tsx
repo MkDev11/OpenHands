@@ -150,8 +150,8 @@ export function ChatInterface() {
     originalImages: File[],
     originalFiles: File[],
   ) => {
-    // Handle /clear command for V1 conversations
-    if (content.trim() === "/clear") {
+    // Handle /new command for V1 conversations
+    if (content.trim() === "/new") {
       if (!isV1Conversation) {
         displayErrorToast(t(I18nKey.CONVERSATION$CLEAR_V1_ONLY));
         return;
